@@ -1,0 +1,112 @@
+version: "3.9"
+
+services:
+  # ==========================
+  # PostgreSQL
+  # ==========================
+  postgres:
+    build: ./postgres
+    container_name: postgres
+    init: true
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: thesisdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_new:/var/lib/postgresql/data
+      - ./logs:/var/log/postgresql
+    networks:
+      - thesis-net
+
+  # ==========================
+  # pgAdmin
+  # ==========================
+  pgadmin:
+    image: dpage/pgadmin4:8.10
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    networks:
+      - thesis-net
+
+  # ==========================
+  # Elasticsearch
+  # ==========================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: elasticsearch
+    init: true
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    networks:
+      - thesis-net
+
+  # ==========================
+  # Logstash
+  # ==========================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.14.3
+    container_name: logstash
+    init: true
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logs:/logs
+      - ../app/backend:/app/logs  # Mount backend directory to access unauthorized_access.log
+      - ./logstash/jdbc:/usr/share/logstash/vendor/jdbc  # JDBC driver for PostgreSQL audit log
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    environment:
+      - LS_JAVA_OPTS=-Xmx2g -Xms1g  # Increased memory for better performance
+      - PIPELINE_WORKERS=4  # Use 4 worker threads for parallel processing
+      - PIPELINE_BATCH_SIZE=1000  # Process 1000 events per batch for better throughput
+      - PIPELINE_BATCH_DELAY=50  # 50ms delay between batches to prevent overwhelming ES
+    networks:
+      - thesis-net
+
+  # ==========================
+  # Kibana
+  # ==========================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.3
+    container_name: kibana
+    init: true
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      # Disable security for testing
+      - XPACK_SECURITY_ENABLED=false
+      # Enable alerting and actions
+      - XPACK_ALERTING_ENABLED=true
+      - XPACK_ACTIONS_ENABLED=true
+      - XPACK_TASK_MANAGER_ENABLED=true
+      # Encryption key for alerting (32 characters minimum)
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=mythesistestkey2024secure1234567
+    ports:
+      - "5601:5601"
+    volumes:
+      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - thesis-net
+
+volumes:
+  pgdata_new:
+
+networks:
+  thesis-net:
+    driver: bridge
+

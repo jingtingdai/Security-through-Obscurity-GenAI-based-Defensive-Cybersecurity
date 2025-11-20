@@ -1,0 +1,530 @@
+
+2025-11-20 05:57:20.040 UTC [3880] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  disconnection: session time: 0:02:09.453 user=myuser database=thesisdb host=172.20.0.4 port=52052
+2025-11-20 05:58:33.208 UTC [3891] user=[unknown],db=[unknown],app=[unknown],client=172.20.0.4 LOG:  connection received: host=172.20.0.4 port=44562
+2025-11-20 05:58:33.316 UTC [3891] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authenticated: identity="myuser" method=scram-sha-256 (/var/lib/postgresql/data/pg_hba.conf:100)
+2025-11-20 05:58:33.316 UTC [3891] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authorized: user=myuser database=thesisdb application_name=pgAdmin 4 - DB:thesisdb
+2025-11-20 05:58:33.472 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';
+2025-11-20 05:58:33.540 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,1,1,READ,SELECT,,,"SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';",<not logged>
+2025-11-20 05:58:33.578 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: SELECT version()
+2025-11-20 05:58:33.587 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,2,1,READ,SELECT,,,SELECT version(),<not logged>
+2025-11-20 05:58:33.596 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: 
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()
+2025-11-20 05:58:33.604 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,3,1,READ,SELECT,,,"
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()",<not logged>
+2025-11-20 05:58:33.606 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()
+2025-11-20 05:58:33.610 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,4,1,READ,SELECT,,,"
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()",<not logged>
+2025-11-20 05:58:33.621 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user
+2025-11-20 05:58:33.641 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,5,1,READ,SELECT,,,"
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user",<not logged>
+2025-11-20 05:58:37.546 UTC [3892] user=[unknown],db=[unknown],app=[unknown],client=172.20.0.4 LOG:  connection received: host=172.20.0.4 port=50082
+2025-11-20 05:58:37.591 UTC [3892] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authenticated: identity="myuser" method=scram-sha-256 (/var/lib/postgresql/data/pg_hba.conf:100)
+2025-11-20 05:58:37.591 UTC [3892] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authorized: user=myuser database=thesisdb application_name=pgAdmin 4 - CONN:1881091
+2025-11-20 05:58:37.607 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';
+2025-11-20 05:58:37.613 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,1,1,READ,SELECT,,,"SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';",<not logged>
+2025-11-20 05:58:37.618 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT version()
+2025-11-20 05:58:37.618 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,2,1,READ,SELECT,,,SELECT version(),<not logged>
+2025-11-20 05:58:37.620 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: 
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()
+2025-11-20 05:58:37.621 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,3,1,READ,SELECT,,,"
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()",<not logged>
+2025-11-20 05:58:37.622 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()
+2025-11-20 05:58:37.623 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,4,1,READ,SELECT,,,"
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()",<not logged>
+2025-11-20 05:58:37.624 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user
+2025-11-20 05:58:37.632 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,5,1,READ,SELECT,,,"
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user",<not logged>
+2025-11-20 05:58:37.643 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT * FROM test1021 WHERE row_number = 1
+2025-11-20 05:58:37.651 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,6,1,READ,SELECT,,,SELECT * FROM test1021 WHERE row_number = 1,<not logged>
+2025-11-20 05:58:37.685 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT at.attname, ty.typname, at.attnum
+	    FROM pg_catalog.pg_attribute at
+	    LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	    JOIN pg_catalog.pg_class as cl ON cl.oid=at.attrelid
+	    JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	at.attnum > 0
+	AND at.attisdropped = FALSE
+2025-11-20 05:58:37.693 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,7,1,READ,SELECT,,,"SELECT at.attname, ty.typname, at.attnum
+	    FROM pg_catalog.pg_attribute at
+	    LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	    JOIN pg_catalog.pg_class as cl ON cl.oid=at.attrelid
+	    JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	at.attnum > 0
+	AND at.attisdropped = FALSE",<not logged>
+2025-11-20 05:58:37.699 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT at.attname, at.attnum, ty.typname
+	FROM pg_catalog.pg_attribute at LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	JOIN pg_catalog.pg_class as cl ON cl.oid=AT.attrelid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	attnum = ANY (
+	(SELECT con.conkey FROM pg_catalog.pg_class rel LEFT OUTER JOIN pg_catalog.pg_constraint con ON con.conrelid=rel.oid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=REL.relnamespace
+	AND con.contype='p' WHERE rel.relkind IN ('r','s','t', 'p') AND
+	    rel.oid = (16475)::oid
+	)::oid[])
+2025-11-20 05:58:37.704 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,8,1,READ,SELECT,,,"SELECT at.attname, at.attnum, ty.typname
+	FROM pg_catalog.pg_attribute at LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	JOIN pg_catalog.pg_class as cl ON cl.oid=AT.attrelid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	attnum = ANY (
+	(SELECT con.conkey FROM pg_catalog.pg_class rel LEFT OUTER JOIN pg_catalog.pg_constraint con ON con.conrelid=rel.oid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=REL.relnamespace
+	AND con.contype='p' WHERE rel.relkind IN ('r','s','t', 'p') AND
+	    rel.oid = (16475)::oid
+	)::oid[])",<not logged>
+2025-11-20 05:58:37.708 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT DISTINCT att.attname as name, att.attnum as OID, pg_catalog.format_type(ty.oid,NULL) AS datatype,
+	att.attnotnull as not_null, att.atthasdef as has_default_val, des.description, seq.seqtypid
+	FROM pg_catalog.pg_attribute att
+	    JOIN pg_catalog.pg_type ty ON ty.oid=atttypid
+	    JOIN pg_catalog.pg_namespace tn ON tn.oid=ty.typnamespace
+	    JOIN pg_catalog.pg_class cl ON cl.oid=att.attrelid
+	    JOIN pg_catalog.pg_namespace na ON na.oid=cl.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_type et ON et.oid=ty.typelem
+	    LEFT OUTER JOIN pg_catalog.pg_attrdef def ON adrelid=att.attrelid AND adnum=att.attnum
+	    LEFT OUTER JOIN (pg_catalog.pg_depend JOIN pg_catalog.pg_class cs ON classid='pg_class'::regclass AND objid=cs.oid AND cs.relkind='S') ON refobjid=att.attrelid AND refobjsubid=att.attnum
+	    LEFT OUTER JOIN pg_catalog.pg_namespace ns ON ns.oid=cs.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_index pi ON pi.indrelid=att.attrelid AND indisprimary
+	    LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=att.attrelid AND des.objsubid=att.attnum AND des.classoid='pg_class'::regclass)
+	    LEFT OUTER JOIN pg_catalog.pg_sequence seq ON cs.oid=seq.seqrelid
+	WHERE
+	
+	    att.attrelid = 16475::oid
+	    AND att.attnum > 0
+	    AND att.attisdropped IS FALSE
+	ORDER BY att.attnum
+2025-11-20 05:58:37.716 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,9,1,READ,SELECT,,,"SELECT DISTINCT att.attname as name, att.attnum as OID, pg_catalog.format_type(ty.oid,NULL) AS datatype,
+	att.attnotnull as not_null, att.atthasdef as has_default_val, des.description, seq.seqtypid
+	FROM pg_catalog.pg_attribute att
+	    JOIN pg_catalog.pg_type ty ON ty.oid=atttypid
+	    JOIN pg_catalog.pg_namespace tn ON tn.oid=ty.typnamespace
+	    JOIN pg_catalog.pg_class cl ON cl.oid=att.attrelid
+	    JOIN pg_catalog.pg_namespace na ON na.oid=cl.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_type et ON et.oid=ty.typelem
+	    LEFT OUTER JOIN pg_catalog.pg_attrdef def ON adrelid=att.attrelid AND adnum=att.attnum
+	    LEFT OUTER JOIN (pg_catalog.pg_depend JOIN pg_catalog.pg_class cs ON classid='pg_class'::regclass AND objid=cs.oid AND cs.relkind='S') ON refobjid=att.attrelid AND refobjsubid=att.attnum
+	    LEFT OUTER JOIN pg_catalog.pg_namespace ns ON ns.oid=cs.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_index pi ON pi.indrelid=att.attrelid AND indisprimary
+	    LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=att.attrelid AND des.objsubid=att.attnum AND des.classoid='pg_class'::regclass)
+	    LEFT OUTER JOIN pg_catalog.pg_sequence seq ON cs.oid=seq.seqrelid
+	WHERE
+	
+	    att.attrelid = 16475::oid
+	    AND att.attnum > 0
+	    AND att.attisdropped IS FALSE
+	ORDER BY att.attnum",<not logged>
+2025-11-20 05:58:37.725 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT n.nspname, r.relname
+	FROM pg_catalog.pg_class r
+	    LEFT JOIN pg_catalog.pg_namespace n ON (r.relnamespace = n.oid)
+	WHERE r.oid = 16475;
+	
+2025-11-20 05:58:37.726 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,10,1,READ,SELECT,,,"SELECT n.nspname, r.relname
+	FROM pg_catalog.pg_class r
+	    LEFT JOIN pg_catalog.pg_namespace n ON (r.relnamespace = n.oid)
+	WHERE r.oid = 16475;
+	",<not logged>
+2025-11-20 05:58:37.731 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,11,1,READ,SELECT,,,"SELECT oid, pg_catalog.format_type(oid, NULL) AS typname FROM pg_catalog.pg_type WHERE oid = ANY($1) ORDER BY oid;",<not logged>
+2025-11-20 05:58:37.732 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  execute <unnamed>: SELECT oid, pg_catalog.format_type(oid, NULL) AS typname FROM pg_catalog.pg_type WHERE oid = ANY($1) ORDER BY oid;
+2025-11-20 05:58:37.732 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 DETAIL:  parameters: $1 = '{23,1043,1043,1082,1700,23}'
+2025-11-20 06:00:00.733 UTC [3852] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  AUDIT: SESSION,5,1,READ,SELECT,,,"SELECT count(*) AS ""count"" FROM (SELECT id, table_name, operation, old_data::text as old_data, new_data::text as new_data, changed_fields::text as changed_fields, user_name, application_name, client_address::text as client_address, transaction_id, timestamp, row_id FROM audit_log WHERE timestamp > '2025-11-20 05:46:09.919901+0000' ORDER BY timestamp ASC) AS ""t1"" LIMIT 1",<not logged>
+2025-11-20 06:00:00.734 UTC [3852] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  execute <unnamed>: SELECT count(*) AS "count" FROM (SELECT id, table_name, operation, old_data::text as old_data, new_data::text as new_data, changed_fields::text as changed_fields, user_name, application_name, client_address::text as client_address, transaction_id, timestamp, row_id FROM audit_log WHERE timestamp > '2025-11-20 05:46:09.919901+0000' ORDER BY timestamp ASC) AS "t1" LIMIT 1
+2025-11-20 06:00:50.120 UTC [3891] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  disconnection: session time: 0:02:16.929 user=myuser database=thesisdb host=172.20.0.4 port=44562
+2025-11-20 06:00:50.161 UTC [3892] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  disconnection: session time: 0:02:12.618 user=myuser database=thesisdb host=172.20.0.4 port=50082
+2025-11-20 06:04:54.593 UTC [3852] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  disconnection: session time: 0:18:43.001 user=myuser database=thesisdb host=172.20.0.6 port=50098
+2025-11-20 06:05:29.589 UTC [3913] user=[unknown],db=[unknown],app=[unknown],client=172.20.0.4 LOG:  connection received: host=172.20.0.4 port=43908
+2025-11-20 06:05:29.615 UTC [3913] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authenticated: identity="myuser" method=scram-sha-256 (/var/lib/postgresql/data/pg_hba.conf:100)
+2025-11-20 06:05:29.615 UTC [3913] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authorized: user=myuser database=thesisdb application_name=pgAdmin 4 - DB:thesisdb
+2025-11-20 06:05:29.653 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';
+2025-11-20 06:05:29.664 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,1,1,READ,SELECT,,,"SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';",<not logged>
+2025-11-20 06:05:29.668 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: SELECT version()
+2025-11-20 06:05:29.668 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,2,1,READ,SELECT,,,SELECT version(),<not logged>
+2025-11-20 06:05:29.669 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: 
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()
+2025-11-20 06:05:29.672 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,3,1,READ,SELECT,,,"
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()",<not logged>
+2025-11-20 06:05:29.672 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()
+2025-11-20 06:05:29.673 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,4,1,READ,SELECT,,,"
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()",<not logged>
+2025-11-20 06:05:29.674 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user
+2025-11-20 06:05:29.680 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  AUDIT: SESSION,5,1,READ,SELECT,,,"
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user",<not logged>
+2025-11-20 06:05:31.908 UTC [3914] user=[unknown],db=[unknown],app=[unknown],client=172.20.0.4 LOG:  connection received: host=172.20.0.4 port=43918
+2025-11-20 06:05:31.939 UTC [3914] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authenticated: identity="myuser" method=scram-sha-256 (/var/lib/postgresql/data/pg_hba.conf:100)
+2025-11-20 06:05:31.939 UTC [3914] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.4 LOG:  connection authorized: user=myuser database=thesisdb application_name=pgAdmin 4 - CONN:1881091
+2025-11-20 06:05:31.981 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';
+2025-11-20 06:05:31.988 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,1,1,READ,SELECT,,,"SET DateStyle=ISO; SET client_min_messages=notice; SELECT set_config('bytea_output','hex',false) FROM pg_settings WHERE name = 'bytea_output'; SET client_encoding='utf-8';",<not logged>
+2025-11-20 06:05:31.994 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT version()
+2025-11-20 06:05:31.994 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,2,1,READ,SELECT,,,SELECT version(),<not logged>
+2025-11-20 06:05:31.995 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: 
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()
+2025-11-20 06:05:31.998 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,3,1,READ,SELECT,,,"
+	SELECT
+	    db.oid as did, db.datname, db.datallowconn,
+	    pg_encoding_to_char(db.encoding) AS serverencoding,
+	    has_database_privilege(db.oid, 'CREATE') as cancreate,
+	    datistemplate
+	FROM
+	    pg_catalog.pg_database db
+	WHERE db.datname = current_database()",<not logged>
+2025-11-20 06:05:31.999 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()
+2025-11-20 06:05:32.000 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,4,1,READ,SELECT,,,"
+	        SELECT
+	             gss_authenticated, encrypted
+	        FROM
+	            pg_catalog.pg_stat_gssapi
+	        WHERE pid = pg_backend_pid()",<not logged>
+2025-11-20 06:05:32.001 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: 
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user
+2025-11-20 06:05:32.003 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,5,1,READ,SELECT,,,"
+	        SELECT
+	            roles.oid as id, roles.rolname as name,
+	            roles.rolsuper as is_superuser,
+	            CASE WHEN roles.rolsuper THEN true ELSE roles.rolcreaterole END as
+	            can_create_role,
+	            CASE WHEN roles.rolsuper THEN true
+	            ELSE roles.rolcreatedb END as can_create_db,
+	            CASE WHEN 'pg_signal_backend'=ANY(ARRAY(WITH RECURSIVE cte AS (
+	            SELECT pg_roles.oid,pg_roles.rolname FROM pg_roles
+	                WHERE pg_roles.oid = roles.oid
+	            UNION ALL
+	            SELECT m.roleid,pgr.rolname FROM cte cte_1
+	                JOIN pg_auth_members m ON m.member = cte_1.oid
+	                JOIN pg_roles pgr ON pgr.oid = m.roleid)
+	            SELECT rolname  FROM cte)) THEN True
+	            ELSE False END as can_signal_backend
+	        FROM
+	            pg_catalog.pg_roles as roles
+	        WHERE
+	            rolname = current_user",<not logged>
+2025-11-20 06:05:32.050 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT * FROM test1021 WHERE row_number = 1
+2025-11-20 06:05:32.053 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,6,1,READ,SELECT,,,SELECT * FROM test1021 WHERE row_number = 1,<not logged>
+2025-11-20 06:05:32.072 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT at.attname, ty.typname, at.attnum
+	    FROM pg_catalog.pg_attribute at
+	    LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	    JOIN pg_catalog.pg_class as cl ON cl.oid=at.attrelid
+	    JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	at.attnum > 0
+	AND at.attisdropped = FALSE
+2025-11-20 06:05:32.077 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,7,1,READ,SELECT,,,"SELECT at.attname, ty.typname, at.attnum
+	    FROM pg_catalog.pg_attribute at
+	    LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	    JOIN pg_catalog.pg_class as cl ON cl.oid=at.attrelid
+	    JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	at.attnum > 0
+	AND at.attisdropped = FALSE",<not logged>
+2025-11-20 06:05:32.082 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT at.attname, at.attnum, ty.typname
+	FROM pg_catalog.pg_attribute at LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	JOIN pg_catalog.pg_class as cl ON cl.oid=AT.attrelid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	attnum = ANY (
+	(SELECT con.conkey FROM pg_catalog.pg_class rel LEFT OUTER JOIN pg_catalog.pg_constraint con ON con.conrelid=rel.oid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=REL.relnamespace
+	AND con.contype='p' WHERE rel.relkind IN ('r','s','t', 'p') AND
+	    rel.oid = (16475)::oid
+	)::oid[])
+2025-11-20 06:05:32.084 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,8,1,READ,SELECT,,,"SELECT at.attname, at.attnum, ty.typname
+	FROM pg_catalog.pg_attribute at LEFT JOIN pg_catalog.pg_type ty ON (ty.oid = at.atttypid)
+	JOIN pg_catalog.pg_class as cl ON cl.oid=AT.attrelid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=cl.relnamespace
+	WHERE
+	    attrelid=16475::oid AND
+	attnum = ANY (
+	(SELECT con.conkey FROM pg_catalog.pg_class rel LEFT OUTER JOIN pg_catalog.pg_constraint con ON con.conrelid=rel.oid
+	JOIN pg_catalog.pg_namespace as nsp ON nsp.oid=REL.relnamespace
+	AND con.contype='p' WHERE rel.relkind IN ('r','s','t', 'p') AND
+	    rel.oid = (16475)::oid
+	)::oid[])",<not logged>
+2025-11-20 06:05:32.087 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT DISTINCT att.attname as name, att.attnum as OID, pg_catalog.format_type(ty.oid,NULL) AS datatype,
+	att.attnotnull as not_null, att.atthasdef as has_default_val, des.description, seq.seqtypid
+	FROM pg_catalog.pg_attribute att
+	    JOIN pg_catalog.pg_type ty ON ty.oid=atttypid
+	    JOIN pg_catalog.pg_namespace tn ON tn.oid=ty.typnamespace
+	    JOIN pg_catalog.pg_class cl ON cl.oid=att.attrelid
+	    JOIN pg_catalog.pg_namespace na ON na.oid=cl.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_type et ON et.oid=ty.typelem
+	    LEFT OUTER JOIN pg_catalog.pg_attrdef def ON adrelid=att.attrelid AND adnum=att.attnum
+	    LEFT OUTER JOIN (pg_catalog.pg_depend JOIN pg_catalog.pg_class cs ON classid='pg_class'::regclass AND objid=cs.oid AND cs.relkind='S') ON refobjid=att.attrelid AND refobjsubid=att.attnum
+	    LEFT OUTER JOIN pg_catalog.pg_namespace ns ON ns.oid=cs.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_index pi ON pi.indrelid=att.attrelid AND indisprimary
+	    LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=att.attrelid AND des.objsubid=att.attnum AND des.classoid='pg_class'::regclass)
+	    LEFT OUTER JOIN pg_catalog.pg_sequence seq ON cs.oid=seq.seqrelid
+	WHERE
+	
+	    att.attrelid = 16475::oid
+	    AND att.attnum > 0
+	    AND att.attisdropped IS FALSE
+	ORDER BY att.attnum
+2025-11-20 06:05:32.094 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,9,1,READ,SELECT,,,"SELECT DISTINCT att.attname as name, att.attnum as OID, pg_catalog.format_type(ty.oid,NULL) AS datatype,
+	att.attnotnull as not_null, att.atthasdef as has_default_val, des.description, seq.seqtypid
+	FROM pg_catalog.pg_attribute att
+	    JOIN pg_catalog.pg_type ty ON ty.oid=atttypid
+	    JOIN pg_catalog.pg_namespace tn ON tn.oid=ty.typnamespace
+	    JOIN pg_catalog.pg_class cl ON cl.oid=att.attrelid
+	    JOIN pg_catalog.pg_namespace na ON na.oid=cl.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_type et ON et.oid=ty.typelem
+	    LEFT OUTER JOIN pg_catalog.pg_attrdef def ON adrelid=att.attrelid AND adnum=att.attnum
+	    LEFT OUTER JOIN (pg_catalog.pg_depend JOIN pg_catalog.pg_class cs ON classid='pg_class'::regclass AND objid=cs.oid AND cs.relkind='S') ON refobjid=att.attrelid AND refobjsubid=att.attnum
+	    LEFT OUTER JOIN pg_catalog.pg_namespace ns ON ns.oid=cs.relnamespace
+	    LEFT OUTER JOIN pg_catalog.pg_index pi ON pi.indrelid=att.attrelid AND indisprimary
+	    LEFT OUTER JOIN pg_catalog.pg_description des ON (des.objoid=att.attrelid AND des.objsubid=att.attnum AND des.classoid='pg_class'::regclass)
+	    LEFT OUTER JOIN pg_catalog.pg_sequence seq ON cs.oid=seq.seqrelid
+	WHERE
+	
+	    att.attrelid = 16475::oid
+	    AND att.attnum > 0
+	    AND att.attisdropped IS FALSE
+	ORDER BY att.attnum",<not logged>
+2025-11-20 06:05:32.109 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  statement: SELECT n.nspname, r.relname
+	FROM pg_catalog.pg_class r
+	    LEFT JOIN pg_catalog.pg_namespace n ON (r.relnamespace = n.oid)
+	WHERE r.oid = 16475;
+	
+2025-11-20 06:05:32.110 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,10,1,READ,SELECT,,,"SELECT n.nspname, r.relname
+	FROM pg_catalog.pg_class r
+	    LEFT JOIN pg_catalog.pg_namespace n ON (r.relnamespace = n.oid)
+	WHERE r.oid = 16475;
+	",<not logged>
+2025-11-20 06:05:32.118 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  AUDIT: SESSION,11,1,READ,SELECT,,,"SELECT oid, pg_catalog.format_type(oid, NULL) AS typname FROM pg_catalog.pg_type WHERE oid = ANY($1) ORDER BY oid;",<not logged>
+2025-11-20 06:05:32.118 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  execute <unnamed>: SELECT oid, pg_catalog.format_type(oid, NULL) AS typname FROM pg_catalog.pg_type WHERE oid = ANY($1) ORDER BY oid;
+2025-11-20 06:05:32.118 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 DETAIL:  parameters: $1 = '{23,1043,1043,1082,1700,23}'
+2025-11-20 06:05:36.876 UTC [3915] user=[unknown],db=[unknown],app=[unknown],client=172.20.0.6 LOG:  connection received: host=172.20.0.6 port=58842
+2025-11-20 06:05:36.945 UTC [3915] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.6 LOG:  connection authenticated: identity="myuser" method=scram-sha-256 (/var/lib/postgresql/data/pg_hba.conf:100)
+2025-11-20 06:05:36.945 UTC [3915] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.6 LOG:  connection authorized: user=myuser database=thesisdb
+2025-11-20 06:05:36.992 UTC [3915] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.6 LOG:  execute <unnamed>: SET extra_float_digits = 3
+2025-11-20 06:05:36.993 UTC [3915] user=myuser,db=thesisdb,app=[unknown],client=172.20.0.6 LOG:  execute <unnamed>: SET application_name = 'PostgreSQL JDBC Driver'
+2025-11-20 06:05:37.017 UTC [3915] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  execute <unnamed>: SET standard_conforming_strings = ON
+2025-11-20 06:05:37.018 UTC [3915] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  execute <unnamed>: SET client_min_messages = 'WARNING'
+2025-11-20 06:07:50.855 UTC [3913] user=myuser,db=thesisdb,app=pgAdmin 4 - DB:thesisdb,client=172.20.0.4 LOG:  disconnection: session time: 0:02:21.281 user=myuser database=thesisdb host=172.20.0.4 port=43908
+2025-11-20 06:07:50.904 UTC [3914] user=myuser,db=thesisdb,app=pgAdmin 4 - CONN:1881091,client=172.20.0.4 LOG:  disconnection: session time: 0:02:19.000 user=myuser database=thesisdb host=172.20.0.4 port=43918
+2025-11-20 06:10:00.706 UTC [3915] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  AUDIT: SESSION,1,1,READ,SELECT,,,SELECT CAST(current_setting('server_version_num') AS integer) AS v,<not logged>
+2025-11-20 06:10:00.707 UTC [3915] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  execute <unnamed>: SELECT CAST(current_setting('server_version_num') AS integer) AS v
+2025-11-20 06:10:00.945 UTC [3915] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  AUDIT: SESSION,2,1,READ,SELECT,,,"SELECT count(*) AS ""count"" FROM (SELECT id, table_name, operation, old_data::text as old_data, new_data::text as new_data, changed_fields::text as changed_fields, user_name, application_name, client_address::text as client_address, transaction_id, timestamp, row_id FROM audit_log WHERE timestamp > '2025-11-20 05:46:09.919901+0000' ORDER BY timestamp ASC) AS ""t1"" LIMIT 1",<not logged>
+2025-11-20 06:10:00.946 UTC [3915] user=myuser,db=thesisdb,app=PostgreSQL JDBC Driver,client=172.20.0.6 LOG:  execute <unnamed>: SELECT count(*) AS "count" FROM (SELECT id, table_name, operation, old_data::text as old_data, new_data::text as new_data, changed_fields::text as changed_fields, user_name, application_name, client_address::text as client_address, transaction_id, timestamp, row_id FROM audit_log WHERE timestamp > '2025-11-20 05:46:09.919901+0000' ORDER BY timestamp ASC) AS "t1" LIMIT 1
