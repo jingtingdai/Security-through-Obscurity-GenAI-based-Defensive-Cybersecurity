@@ -16,11 +16,21 @@ import logging
 from datetime import datetime
 
 # Configure logging for security alerts
+# Create file handler with immediate flush to ensure Logstash can read new entries
+# Use a custom handler that flushes after each write
+class FlushingFileHandler(logging.FileHandler):
+    def emit(self, record):
+        super().emit(record)
+        self.flush()
+
+file_handler = FlushingFileHandler('frontend_access.log')
+file_handler.setLevel(logging.INFO)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('unauthorized_access.log'),
+        file_handler,
         logging.StreamHandler()
     ]
 )
@@ -49,20 +59,55 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
 def get_optional_user():
     """Optional user dependency that returns None if not authenticated"""
     from fastapi import Request
-    from auth import oauth2_bearer as bearer
+    from jose import JWTError, jwt
+    from auth import SECRET_KEY, ALGORITHM
     
     async def optional_user_dependency(request: Request):
         try:
             # Try to get the authorization header
             authorization = request.headers.get("Authorization")
+            security_logger.info(f"DEBUG: Authorization header = {authorization[:50] if authorization else 'None'}...")
+            
             if not authorization or not authorization.startswith("Bearer "):
+                security_logger.info("DEBUG: No valid Authorization header found")
                 return None
             
             token = authorization.split(" ")[1]
-            return get_current_user(token)
-        except HTTPException:
+            security_logger.info(f"DEBUG: Token extracted, length = {len(token)}")
+            
+            # Decode JWT token manually (similar to get_current_user)
+            # First try normal decode (for valid tokens)
+            try:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            except JWTError as e:
+                # If token is expired, try to decode without verification for logging purposes
+                security_logger.info(f"DEBUG: JWTError during decode - {str(e)}, attempting unverified decode for logging")
+                try:
+                    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": False, "verify_exp": False})
+                    security_logger.info("DEBUG: Successfully decoded expired token for logging purposes")
+                except Exception as decode_error:
+                    security_logger.info(f"DEBUG: Failed to decode even without verification - {str(decode_error)}")
+                    return None
+            
+            username: str = payload.get("sub")
+            user_id: str = payload.get("id")
+            security_logger.info(f"DEBUG: Decoded payload - username={username}, user_id={user_id}")
+            
+            if username is None or user_id is None:
+                security_logger.info("DEBUG: Username or user_id is None in payload")
+                return None
+            
+            result = {"username": username, "id": user_id}
+            security_logger.info(f"DEBUG: Returning user object: {result}")
+            return result
+        except JWTError as e:
+            security_logger.info(f"DEBUG: JWTError - {str(e)}")
             return None
-        except Exception:
+        except HTTPException as e:
+            security_logger.info(f"DEBUG: HTTPException - {str(e)}")
+            return None
+        except Exception as e:
+            security_logger.info(f"DEBUG: Unexpected exception - {type(e).__name__}: {str(e)}")
             return None
     
     return Depends(optional_user_dependency)
@@ -183,9 +228,15 @@ def check_and_log_row_access(requested_row: int, user: str = "unknown", log_auth
 async def read_real(user = get_optional_user()):
     db: Session = SessionLocal()
     
+    # Debug logging
+    security_logger.info(f"DEBUG: user object = {user}, type = {type(user)}")
+    
     username = "unknown"
     if user:
-        username = user.get("sub", "unknown")
+        security_logger.info(f"DEBUG: user dict = {user}, username field = {user.get('username', 'NOT_FOUND')}")
+        username = user.get("username", "unknown")
+    else:
+        security_logger.info("DEBUG: user is None or falsy")
 
     true_row_number = get_row_number(0)
     
@@ -220,7 +271,7 @@ async def query_specific_row(row_number: int, user = get_optional_user()):
     
     username = "unknown"
     if user:
-        username = user.get("sub", "unknown")
+        username = user.get("username", "unknown")
     
     # Check if this row access is authorized
     is_authorized = check_and_log_row_access(row_number, username)

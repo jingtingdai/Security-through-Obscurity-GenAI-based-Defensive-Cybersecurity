@@ -64,7 +64,7 @@ services:
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline
       - ./logs:/logs
-      - ../app/backend:/app/logs  # Mount backend directory to access unauthorized_access.log
+      - ../backend:/app/logs  # Mount backend directory to access frontend_access.log
       - ./logstash/jdbc:/usr/share/logstash/vendor/jdbc  # JDBC driver for PostgreSQL audit log
     ports:
       - "5044:5044"
