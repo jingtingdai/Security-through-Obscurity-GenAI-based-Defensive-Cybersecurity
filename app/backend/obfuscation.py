@@ -34,7 +34,10 @@ def obfuscate_date(date):
     if date is None:
         return None
     offset_days = secret_key
-    date = datetime.date.fromisoformat(date)
+    try:
+        date = datetime.date.fromisoformat(date)
+    except:
+        return date+datetime.timedelta(days=offset_days)
     return date + datetime.timedelta(days=offset_days)
 
 def deobfuscate_str(s:str):

@@ -5,23 +5,29 @@ export const authGuard = {
   requiresAuth(to, from, next) {
     const token = authService.getToken()
     const isAuthenticated = authService.isAuthenticated()
+    const isExpired = authService.isTokenExpired()
     
     console.log('Auth guard check:', { 
       path: to.path,
       from: from.path,
       isAuthenticated, 
       hasToken: !!token,
+      isExpired,
       tokenPreview: token ? token.substring(0, 30) + '...' : 'none'
     })
     
-    // Only check if token exists - let the server validate expiration
-    // The server will return 401 if token is invalid, and axios interceptor will handle it
-    if (!isAuthenticated) {
-      console.warn('Auth guard: Access denied, redirecting to login - no token found')
+    // Check if token exists and is not expired
+    if (!isAuthenticated || isExpired) {
+      if (isExpired) {
+        console.warn('Auth guard: Token expired, redirecting to login')
+        authService.logout()
+      } else {
+        console.warn('Auth guard: Access denied, redirecting to login - no token found')
+      }
       // Redirect to login
       next('/login')
     } else {
-      console.log('Auth guard: Access granted to', to.path, '- token exists, server will validate')
+      console.log('Auth guard: Access granted to', to.path, '- token exists and is valid')
       next()
     }
   },
@@ -29,14 +35,18 @@ export const authGuard = {
   // Check if user is already authenticated (for login page)
   alreadyAuthenticated(to, from, next) {
     const isAuthenticated = authService.isAuthenticated()
+    const isExpired = authService.isTokenExpired()
     
-    // Only check if token exists - let the server validate expiration
-    if (isAuthenticated) {
-      // User has a token, redirect to main page
-      // Server will validate if token is still valid
-      console.log('Auth guard: User already has token, redirecting to /csv')
+    // Check if token exists and is not expired
+    if (isAuthenticated && !isExpired) {
+      // User has a valid token, redirect to main page
+      console.log('Auth guard: User already has valid token, redirecting to /csv')
       next('/csv')
     } else {
+      if (isExpired) {
+        console.log('Auth guard: Token expired, clearing and staying on login page')
+        authService.logout()
+      }
       next()
     }
   }

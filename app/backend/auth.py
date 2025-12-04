@@ -125,7 +125,7 @@ def create_access_token(username: str, user_id: int, expires_delta: timedelta):
     Generates a JWT access token with an expiration time.
     """
     encode = {"sub": username, "id": user_id}
-    expires = datetime.now() + expires_delta
+    expires = datetime.utcnow() + expires_delta
     encode.update({"exp": expires})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 

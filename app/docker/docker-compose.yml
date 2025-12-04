@@ -70,10 +70,10 @@ services:
       - "5044:5044"
       - "9600:9600"
     environment:
-      - LS_JAVA_OPTS=-Xmx2g -Xms1g  # Increased memory for better performance
-      - PIPELINE_WORKERS=4  # Use 4 worker threads for parallel processing
-      - PIPELINE_BATCH_SIZE=1000  # Process 1000 events per batch for better throughput
-      - PIPELINE_BATCH_DELAY=50  # 50ms delay between batches to prevent overwhelming ES
+      - LS_JAVA_OPTS=-Xmx2g -Xms1g  # Memory allocation
+      - PIPELINE_WORKERS=2  # Reduced to 2 workers to lower memory usage
+      - PIPELINE_BATCH_SIZE=250  # Reduced batch size to prevent memory spikes
+      - PIPELINE_BATCH_DELAY=200  # Increased delay to 200ms for better memory management
     networks:
       - thesis-net
 

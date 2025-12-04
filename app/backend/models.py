@@ -3,7 +3,7 @@ from sqlalchemy import Numeric, Column, Integer, String, TIMESTAMP, Date
 
 
 class Test(Base):
-    __tablename__ = "test1123"
+    __tablename__ = "test1123_f"
 
     row_number = Column(Integer,primary_key=True, index=True, nullable=True)
     Shipment_ID = Column(String,index=False)

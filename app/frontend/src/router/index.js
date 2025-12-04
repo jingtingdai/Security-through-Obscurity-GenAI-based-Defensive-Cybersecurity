@@ -15,13 +15,13 @@ const routes = [
   {
     path: '/login',
     name: 'login',
-    component: () => import(/* webpackChunkName: "login" */ '../components/Login.vue'),
+    component: () => import('../components/Login.vue'),
     beforeEnter: authGuard.alreadyAuthenticated
   },
   {
     path: '/csv',
     name: 'csv',
-    component: () => import(/* webpackChunkName: "csv" */ '../views/CSVView.vue'),
+    component: () => import('../views/CSVView.vue'),
     beforeEnter: authGuard.requiresAuth
   }
 ]

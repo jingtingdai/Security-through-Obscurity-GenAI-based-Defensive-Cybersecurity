@@ -24,15 +24,23 @@ export default {
   name: 'App',
   data() {
     return {
-      isAuthenticated: false
+      isAuthenticated: false,
+      tokenCheckInterval: null
     }
   },
   mounted() {
     this.checkAuthStatus()
+    this.startTokenExpirationCheck()
   },
   methods: {
     checkAuthStatus() {
-      // Only check if token exists - let the server validate expiration
+      // Check if token exists and is not expired
+      if (authService.isTokenExpired()) {
+        // Token expired, logout automatically
+        console.warn('Token expired, logging out automatically')
+        this.handleLogout()
+        return
+      }
       this.isAuthenticated = authService.isAuthenticated()
     },
     
@@ -40,6 +48,20 @@ export default {
       authService.logout()
       this.isAuthenticated = false
       this.$router.push('/login')
+    },
+    
+    startTokenExpirationCheck() {
+      // Check token expiration every 30 seconds
+      this.tokenCheckInterval = setInterval(() => {
+        if (authService.isTokenExpired()) {
+          console.warn('Token expired detected, logging out automatically')
+          this.handleLogout()
+          // Clear the interval since we're logging out
+          if (this.tokenCheckInterval) {
+            clearInterval(this.tokenCheckInterval)
+          }
+        }
+      }, 30000) // Check every 30 seconds
     }
   },
   
@@ -62,7 +84,19 @@ export default {
     // Listen for custom login event (fired when login succeeds in same window)
     window.addEventListener('user-logged-in', () => {
       this.checkAuthStatus()
+      // Restart token check when user logs in
+      if (this.tokenCheckInterval) {
+        clearInterval(this.tokenCheckInterval)
+      }
+      this.startTokenExpirationCheck()
     })
+  },
+  
+  // Clean up interval when component is destroyed
+  beforeUnmount() {
+    if (this.tokenCheckInterval) {
+      clearInterval(this.tokenCheckInterval)
+    }
   }
 }
 </script>

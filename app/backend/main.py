@@ -14,7 +14,10 @@ from auth import get_current_user, router
 from dependency import db_dependency
 import logging
 from datetime import datetime
-
+from faker import Faker 
+import time
+import os 
+import csv
 # Configure logging for security alerts
 # Create file handler with immediate flush to ensure Logstash can read new entries
 # Use a custom handler that flushes after each write
@@ -52,7 +55,7 @@ models.Base.metadata.create_all(bind=engine)
 
 # represent number of rows for 1 true data. e.g if for every 1 true data there will be another 9 fake data, then it will be set 10
 dataPerTrue = 10
-
+eval_dict = {}
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
 # Optional authentication function
@@ -119,10 +122,19 @@ async def user(user: user_dependency, db: db_dependency):
         raise HTTPException(status_code=401, detail="Authentication Failed")
     return {"User": user}
 
+def create_fake_rows(num=1):
+    fake = Faker()
+    fake_data = [{"Shipment_ID":fake.bothify(text="SH#####") , 
+                            "Origin_Warehouse": "Warehouse_"+fake.city()[:3].upper(), 
+                            "Shipment_Date": fake.date_between(start_date='-2y'), 
+                            "Weight_kg": fake.random_int(min=1, max=1000)/10, 
+                            "Transit_Days": fake.random_int(min=1, max=10)} for x in range(num)]
+    return fake_data
 
 @app.post("/upload-csv/")
 async def upload_csv(file: UploadFile):
     #Check if file is csv
+    start_time = time.time()
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400,detail="Only csv file allowed")
 
@@ -131,13 +143,15 @@ async def upload_csv(file: UploadFile):
 
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV file is empty or contains no data")
-
+    
     # read fake data
+    eval_dict["data_per_true"] = dataPerTrue
     data_quantity = dataPerTrue * len(df)
-    fake_file_name = f"/Users/jingtingdai/Desktop/Master_Thesis/learning/test/data/synthetic_{data_quantity}_rows.csv"
-    fake_df = pd.read_csv(fake_file_name)
-    
-    
+    #fake_file_name = f"/Users/jingtingdai/Desktop/Master_Thesis/learning/test/data/synthetic_{data_quantity}_rows.csv"
+    #fake_df = pd.read_csv(fake_file_name)
+    generate_fakes_start_time = time.time()
+    fake_dict = create_fake_rows(data_quantity)
+    eval_dict["generate_fake_rows_time"] = time.time() - generate_fakes_start_time
     db: Session = SessionLocal()
     try:
         max_row_number = db.query(func.max(models.Test.row_number)).scalar()
@@ -157,7 +171,8 @@ async def upload_csv(file: UploadFile):
         for i in range(data_quantity):
             cur_row_number = max_row_number + i+1 
             if cur_row_number not in true_row_number:
-                cur_obj = get_model_data(cur_row_number, fake_df.loc[i].to_dict())
+                
+                cur_obj = get_model_data(cur_row_number, fake_dict[i])
             else:
                 cur_obj = get_model_data(cur_row_number, records[idx])
                 idx += 1
@@ -166,6 +181,8 @@ async def upload_csv(file: UploadFile):
 
         db.add_all(objects)
         db.commit()
+        eval_dict["upload_time"] = time.time() - start_time
+        eval_dict["upload_rows"] = len(objects)
         return {"status": "success", "rows": len(objects)}
 
     except Exception as e:
@@ -227,7 +244,7 @@ def check_and_log_row_access(requested_row: int, user: str = "unknown", log_auth
 @app.get("/real-data/")
 async def read_real(user = get_optional_user()):
     db: Session = SessionLocal()
-    
+    start_time = time.time()
     # Debug logging
     security_logger.info(f"DEBUG: user object = {user}, type = {type(user)}")
     
@@ -258,7 +275,17 @@ async def read_real(user = get_optional_user()):
         cur_dict["Weight_kg"] = deobfuscate_number(i.Weight_kg)
         cur_dict["Transit_Days"] = deobfuscate_number(i.Transit_Days)
         real_data.append(cur_dict)
-
+    
+    eval_dict["read_real_data_time"] = time.time() - start_time
+    eval_dict["total_read_rows"] = len(real_data)
+    field_names = ["data_per_true","upload_rows", "generate_fake_rows_time", "upload_time", "read_real_data_time", "total_read_rows"]
+    eval_file_name = "./eval.csv"
+    with open(eval_file_name, mode = 'a') as f:
+        writer = csv.DictWriter(f, fieldnames=field_names)
+        if(os.stat(eval_file_name).st_size==0):
+            writer.writeheader()
+        writer.writerow(eval_dict)
+   
     return real_data
 
 @app.get("/query-row/{row_number}")
