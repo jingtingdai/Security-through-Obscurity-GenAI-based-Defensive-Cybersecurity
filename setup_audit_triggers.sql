@@ -38,7 +38,16 @@ DECLARE
     changed_fields JSONB := '{}'::JSONB;
     row_id_value VARCHAR(255);
     table_pk_column VARCHAR(255);
+    app_name VARCHAR(255);
 BEGIN
+    -- Skip INSERT operations from frontend application
+    IF TG_OP = 'INSERT' THEN
+        app_name := current_setting('application_name', true);
+        IF app_name = 'frontend' THEN
+            RETURN NEW;
+        END IF;
+    END IF;
+    
     -- Determine the primary key column name
     SELECT column_name INTO table_pk_column
     FROM information_schema.table_constraints tc
@@ -121,12 +130,12 @@ $$ LANGUAGE plpgsql;
 
 -- Step 3: Create triggers on existing tables
 -- Drop existing triggers if they exist (to allow re-running this script)
-DROP TRIGGER IF EXISTS audit_trigger_test1021 ON test1021;
+DROP TRIGGER IF EXISTS audit_trigger_test1123_f ON test1123_f;
 DROP TRIGGER IF EXISTS audit_trigger_users ON "Users";
 
 -- Create trigger on test1021 table
-CREATE TRIGGER audit_trigger_test1021
-    AFTER INSERT OR UPDATE OR DELETE ON test1021
+CREATE TRIGGER audit_trigger_test1123_f
+    AFTER INSERT OR UPDATE OR DELETE ON test1123_f
     FOR EACH ROW
     EXECUTE FUNCTION audit_trigger_function();
 
@@ -140,6 +149,6 @@ CREATE TRIGGER audit_trigger_users
 DO $$
 BEGIN
     RAISE NOTICE 'Audit triggers have been successfully created!';
-    RAISE NOTICE 'Triggers are active on: test1021, Users';
+    RAISE NOTICE 'Triggers are active on: test1123_f, Users';
 END $$;
 

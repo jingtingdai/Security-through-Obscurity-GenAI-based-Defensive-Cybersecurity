@@ -12,7 +12,7 @@
       
       <div class="row">
         <div class="col-lg-6 mb-4">
-          <CSVUpload @upload-success="handleUploadSuccess" />
+          <CSVUpload />
         </div>
         <div class="col-lg-6 mb-4">
           <div class="card">
@@ -51,12 +51,6 @@ export default {
     CSVUpload,
     DataDisplay
   },
-  methods: {
-    handleUploadSuccess() {
-      // Refresh the data display when upload is successful
-      this.$refs.dataDisplay.loadData()
-    }
-  }
 }
 </script>
 

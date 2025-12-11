@@ -18,6 +18,7 @@ from faker import Faker
 import time
 import os 
 import csv
+import psutil
 # Configure logging for security alerts
 # Create file handler with immediate flush to ensure Logstash can read new entries
 # Use a custom handler that flushes after each write
@@ -54,9 +55,36 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=engine)
 
 # represent number of rows for 1 true data. e.g if for every 1 true data there will be another 9 fake data, then it will be set 10
-dataPerTrue = 10
-eval_dict = {}
+dataPerTrue = 100
+upload_eval_dict = {}
+read_eval_dict = {}
 user_dependency = Annotated[dict, Depends(get_current_user)]
+
+# Helper functions for CPU and memory tracking
+def get_memory_mb():
+    """Get current process memory usage in MB"""
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / 1024 / 1024  # Convert bytes to MB
+
+def get_cpu_percent(interval=0.1):
+    """Get current process CPU usage percentage"""
+    process = psutil.Process(os.getpid())
+    return process.cpu_percent(interval=interval)
+
+def track_resource_usage(start_memory, start_time, operation_name="operation"):
+    """Track resource usage during an operation and return metrics"""
+    end_memory = get_memory_mb()
+    memory_delta = end_memory - start_memory
+    
+    # Get CPU usage (non-blocking, uses last interval)
+    cpu_percent = get_cpu_percent(interval=0.1)
+    
+    return {
+        f"{operation_name}_memory_start_mb": round(start_memory, 2),
+        f"{operation_name}_memory_end_mb": round(end_memory, 2),
+        f"{operation_name}_memory_delta_mb": round(memory_delta, 2),
+        f"{operation_name}_cpu_percent": round(cpu_percent, 2)
+    }
 
 # Optional authentication function
 def get_optional_user():
@@ -131,10 +159,21 @@ def create_fake_rows(num=1):
                             "Transit_Days": fake.random_int(min=1, max=10)} for x in range(num)]
     return fake_data
 
+# only for evaluation purpose
+@app.get("/delete-table/")
+def delete_table():
+    db: Session = SessionLocal()
+    db.query(models.Test).delete()
+    db.commit()
+    db.close()
+
+
 @app.post("/upload-csv/")
 async def upload_csv(file: UploadFile):
     #Check if file is csv
     start_time = time.time()
+    start_memory = get_memory_mb()  # Track initial memory
+    
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400,detail="Only csv file allowed")
 
@@ -145,29 +184,34 @@ async def upload_csv(file: UploadFile):
         raise HTTPException(status_code=400, detail="CSV file is empty or contains no data")
     
     # read fake data
-    eval_dict["data_per_true"] = dataPerTrue
+    upload_eval_dict["data_per_true"] = dataPerTrue
     data_quantity = dataPerTrue * len(df)
     #fake_file_name = f"/Users/jingtingdai/Desktop/Master_Thesis/learning/test/data/synthetic_{data_quantity}_rows.csv"
     #fake_df = pd.read_csv(fake_file_name)
     generate_fakes_start_time = time.time()
     fake_dict = create_fake_rows(data_quantity)
-    eval_dict["generate_fake_rows_time"] = time.time() - generate_fakes_start_time
+    upload_eval_dict["generate_fake_rows_time"] = time.time() - generate_fakes_start_time
     db: Session = SessionLocal()
     try:
+        # Time database query for max_row_number
+        db_query_start_time = time.time()
         max_row_number = db.query(func.max(models.Test.row_number)).scalar()
+        upload_eval_dict["db_query_time"] = time.time() - db_query_start_time
         if max_row_number is None:
             max_row_number = 0
     except:
         max_row_number = 0
+        upload_eval_dict["db_query_time"] = 0
 
     #check data model
     try:
         records = df.to_dict(orient="records")
        
-        # Map to ORM objects
+        # Map to ORM objects with obfuscation timing
         objects = []
         true_row_number = get_row_number(len(records))
         idx  = 0
+        obfuscation_start_time = time.time()
         for i in range(data_quantity):
             cur_row_number = max_row_number + i+1 
             if cur_row_number not in true_row_number:
@@ -177,12 +221,34 @@ async def upload_csv(file: UploadFile):
                 cur_obj = get_model_data(cur_row_number, records[idx])
                 idx += 1
             objects.append(cur_obj)
+        upload_eval_dict["obfuscation_time"] = time.time() - obfuscation_start_time
      
 
+        # Time database write operations
+        db_write_start_time = time.time()
         db.add_all(objects)
         db.commit()
-        eval_dict["upload_time"] = time.time() - start_time
-        eval_dict["upload_rows"] = len(objects)
+        upload_eval_dict["db_write_time"] = time.time() - db_write_start_time
+        upload_eval_dict["upload_time"] = time.time() - start_time
+        upload_eval_dict["real_data_rows"] = len(records)
+        upload_eval_dict["fake_data_rows"] = data_quantity - len(records)
+        
+        # Track resource usage
+        resource_metrics = track_resource_usage(start_memory, start_time, "upload")
+        upload_eval_dict.update(resource_metrics)
+        
+        # Write upload metrics to CSV
+        upload_field_names = ["data_per_true", "real_data_rows", "fake_data_rows", "generate_fake_rows_time", "obfuscation_time", "db_query_time", "db_write_time", "upload_time", "upload_memory_start_mb", "upload_memory_end_mb", "upload_memory_delta_mb", "upload_cpu_percent"]
+        upload_eval_file_name = "./upload_eval.csv"
+        with open(upload_eval_file_name, mode='a') as f:
+            writer = csv.DictWriter(f, fieldnames=upload_field_names)
+            if os.stat(upload_eval_file_name).st_size == 0:
+                writer.writeheader()
+            writer.writerow(upload_eval_dict)
+        
+        # Reset upload_eval_dict for next upload
+        upload_eval_dict.clear()
+        
         return {"status": "success", "rows": len(objects)}
 
     except Exception as e:
@@ -191,60 +257,11 @@ async def upload_csv(file: UploadFile):
     finally:
         db.close()
 
-def check_and_log_row_access(requested_row: int, user: str = "unknown", log_authorized_access: bool = True):
-    """
-    Check if a row number is authorized and log access attempts.
-    Returns True if authorized, False if unauthorized.
-    
-    Args:
-        requested_row: The row number being accessed
-        user: The user making the request
-        log_authorized_access: If True, also logs when authorized users access fake rows
-    
-    Returns:
-        True if row is in true_row_number, False otherwise
-    """
-    true_row_number = get_row_number(0)
-    is_authorized = requested_row in true_row_number
-    
-    # Log access attempt with frontend_access tag and row information
-    security_logger.info(
-        f"FRONTEND_ACCESS - accessed_row:{requested_row} "
-        f"authorized_rows:{true_row_number} "
-        f"is_authorized:{is_authorized} "
-        f"requested_by:{user} timestamp:{datetime.now().isoformat()}"
-    )
-    
-    if not is_authorized:
-        # Log unauthorized access (for security monitoring)
-        security_logger.warning(
-            f"UNAUTHORIZED_ACCESS - row_number:{requested_row} "
-            f"authorized_rows:{true_row_number} requested_by:{user} timestamp:{datetime.now().isoformat()}"
-        )
-        
-        # Also log as "FAKE_DATA_ACCESS" for auditing authorized users
-        if log_authorized_access:
-            security_logger.info(
-                f"FAKE_DATA_ACCESS - row_number:{requested_row} "
-                f"is_fake_row:true authorized_rows:{true_row_number} "
-                f"requested_by:{user} timestamp:{datetime.now().isoformat()}"
-            )
-        
-        return False
-    else:
-        # Log access to authorized/real data rows
-        if log_authorized_access:
-            security_logger.info(
-                f"REAL_DATA_ACCESS - row_number:{requested_row} "
-                f"is_fake_row:false authorized_rows:{true_row_number} "
-                f"requested_by:{user} timestamp:{datetime.now().isoformat()}"
-            )
-        return True
-
 @app.get("/real-data/")
 async def read_real(user = get_optional_user()):
     db: Session = SessionLocal()
     start_time = time.time()
+    start_memory = get_memory_mb()  # Track initial memory
     # Debug logging
     security_logger.info(f"DEBUG: user object = {user}, type = {type(user)}")
     
@@ -263,10 +280,15 @@ async def read_real(user = get_optional_user()):
         f"requested_by:{username} timestamp:{datetime.now().isoformat()}"
     )
     
+    # Time database query
+    db_query_start_time = time.time()
     result = db.query(models.Test).filter(models.Test.row_number.in_(true_row_number)).all()
+    read_eval_dict["db_query_time"] = time.time() - db_query_start_time
 
     real_data = []
 
+    # Time deobfuscation
+    deobfuscation_start_time = time.time()
     for i in result:
         cur_dict = {}
         cur_dict["Shipment_ID"] = deobfuscate_str(i.Shipment_ID)
@@ -275,56 +297,28 @@ async def read_real(user = get_optional_user()):
         cur_dict["Weight_kg"] = deobfuscate_number(i.Weight_kg)
         cur_dict["Transit_Days"] = deobfuscate_number(i.Transit_Days)
         real_data.append(cur_dict)
+    read_eval_dict["deobfuscation_time"] = time.time() - deobfuscation_start_time
     
-    eval_dict["read_real_data_time"] = time.time() - start_time
-    eval_dict["total_read_rows"] = len(real_data)
-    field_names = ["data_per_true","upload_rows", "generate_fake_rows_time", "upload_time", "read_real_data_time", "total_read_rows"]
-    eval_file_name = "./eval.csv"
-    with open(eval_file_name, mode = 'a') as f:
-        writer = csv.DictWriter(f, fieldnames=field_names)
-        if(os.stat(eval_file_name).st_size==0):
+    read_eval_dict["read_real_data_time"] = time.time() - start_time
+    read_eval_dict["total_read_rows"] = len(real_data)
+    
+    # Track resource usage
+    resource_metrics = track_resource_usage(start_memory, start_time, "read")
+    read_eval_dict.update(resource_metrics)
+    
+    # Write read metrics to CSV
+    read_field_names = ["read_real_data_time", "db_query_time", "deobfuscation_time", "total_read_rows", "read_memory_start_mb", "read_memory_end_mb", "read_memory_delta_mb", "read_cpu_percent"]
+    read_eval_file_name = "./read_eval.csv"
+    with open(read_eval_file_name, mode='a') as f:
+        writer = csv.DictWriter(f, fieldnames=read_field_names)
+        if os.stat(read_eval_file_name).st_size == 0:
             writer.writeheader()
-        writer.writerow(eval_dict)
+        writer.writerow(read_eval_dict)
+    
+    # Reset read_eval_dict for next read
+    read_eval_dict.clear()
    
     return real_data
-
-@app.get("/query-row/{row_number}")
-async def query_specific_row(row_number: int, user = get_optional_user()):
-    """
-    Query a specific row by row_number. 
-    This endpoint logs unauthorized access if the row is not in true_row_number.
-    """
-    db: Session = SessionLocal()
-    
-    username = "unknown"
-    if user:
-        username = user.get("username", "unknown")
-    
-    # Check if this row access is authorized
-    is_authorized = check_and_log_row_access(row_number, username)
-    
-    result = db.query(models.Test).filter(models.Test.row_number == row_number).first()
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="Row not found")
-    
-    # Only return deobfuscated data if authorized
-    if is_authorized:
-        cur_dict = {
-            "row_number": result.row_number,
-            "Shipment_ID": deobfuscate_str(result.Shipment_ID),
-            "Origin_Warehouse": deobfuscate_str(result.Origin_Warehouse),
-            "Shipment_Date": str(deobfuscate_date(result.Shipment_Date)),
-            "Weight_kg": float(deobfuscate_number(result.Weight_kg)),
-            "Transit_Days": int(deobfuscate_number(result.Transit_Days))
-        }
-        return cur_dict
-    else:
-        # Return obfuscated data or limited info
-        raise HTTPException(
-            status_code=403, 
-            detail="Unauthorized access to this row"
-        )
 
 
 def get_model_data(mapped_row, rec):
