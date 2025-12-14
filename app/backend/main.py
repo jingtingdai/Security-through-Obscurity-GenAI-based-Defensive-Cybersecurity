@@ -55,7 +55,7 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=engine)
 
 # represent number of rows for 1 true data. e.g if for every 1 true data there will be another 9 fake data, then it will be set 10
-dataPerTrue = 100
+dataPerTrue = 30
 upload_eval_dict = {}
 read_eval_dict = {}
 user_dependency = Annotated[dict, Depends(get_current_user)]
@@ -186,8 +186,6 @@ async def upload_csv(file: UploadFile):
     # read fake data
     upload_eval_dict["data_per_true"] = dataPerTrue
     data_quantity = dataPerTrue * len(df)
-    #fake_file_name = f"/Users/jingtingdai/Desktop/Master_Thesis/learning/test/data/synthetic_{data_quantity}_rows.csv"
-    #fake_df = pd.read_csv(fake_file_name)
     generate_fakes_start_time = time.time()
     fake_dict = create_fake_rows(data_quantity)
     upload_eval_dict["generate_fake_rows_time"] = time.time() - generate_fakes_start_time
@@ -199,6 +197,8 @@ async def upload_csv(file: UploadFile):
         upload_eval_dict["db_query_time"] = time.time() - db_query_start_time
         if max_row_number is None:
             max_row_number = 0
+        else:
+            max_row_number += 1
     except:
         max_row_number = 0
         upload_eval_dict["db_query_time"] = 0
@@ -210,10 +210,11 @@ async def upload_csv(file: UploadFile):
         # Map to ORM objects with obfuscation timing
         objects = []
         true_row_number = get_row_number(len(records))
+        
         idx  = 0
         obfuscation_start_time = time.time()
         for i in range(data_quantity):
-            cur_row_number = max_row_number + i+1 
+            cur_row_number = max_row_number + i 
             if cur_row_number not in true_row_number:
                 
                 cur_obj = get_model_data(cur_row_number, fake_dict[i])
@@ -238,14 +239,16 @@ async def upload_csv(file: UploadFile):
         upload_eval_dict.update(resource_metrics)
         
         # Write upload metrics to CSV
-        upload_field_names = ["data_per_true", "real_data_rows", "fake_data_rows", "generate_fake_rows_time", "obfuscation_time", "db_query_time", "db_write_time", "upload_time", "upload_memory_start_mb", "upload_memory_end_mb", "upload_memory_delta_mb", "upload_cpu_percent"]
+        upload_field_names = ["data_per_true", "real_data_rows", "fake_data_rows", "generate_fake_rows_time", "obfuscation_time","numbers_of_real_data_in_db_before_upload", "db_query_time", "db_write_time", "upload_time", "upload_memory_start_mb", "upload_memory_end_mb", "upload_memory_delta_mb", "upload_cpu_percent"]
         upload_eval_file_name = "./upload_eval.csv"
-        with open(upload_eval_file_name, mode='a') as f:
-            writer = csv.DictWriter(f, fieldnames=upload_field_names)
-            if os.stat(upload_eval_file_name).st_size == 0:
-                writer.writeheader()
-            writer.writerow(upload_eval_dict)
-        
+        try:
+            with open(upload_eval_file_name, mode='a') as f:
+                writer = csv.DictWriter(f, fieldnames=upload_field_names)
+                if os.stat(upload_eval_file_name).st_size == 0:
+                    writer.writeheader()
+                writer.writerow(upload_eval_dict)
+        except Exception as e:
+            print(f"Error writing to CSV: {str(e)}")
         # Reset upload_eval_dict for next upload
         upload_eval_dict.clear()
         
@@ -301,13 +304,14 @@ async def read_real(user = get_optional_user()):
     
     read_eval_dict["read_real_data_time"] = time.time() - start_time
     read_eval_dict["total_read_rows"] = len(real_data)
+    read_eval_dict["data_per_true"] = dataPerTrue
     
     # Track resource usage
     resource_metrics = track_resource_usage(start_memory, start_time, "read")
     read_eval_dict.update(resource_metrics)
     
     # Write read metrics to CSV
-    read_field_names = ["read_real_data_time", "db_query_time", "deobfuscation_time", "total_read_rows", "read_memory_start_mb", "read_memory_end_mb", "read_memory_delta_mb", "read_cpu_percent"]
+    read_field_names = ["read_real_data_time", "db_query_time", "deobfuscation_time", "numbers_of_real_data_in_db_before_read","total_read_rows", "data_per_true", "read_memory_start_mb", "read_memory_end_mb", "read_memory_delta_mb", "read_cpu_percent"]
     read_eval_file_name = "./read_eval.csv"
     with open(read_eval_file_name, mode='a') as f:
         writer = csv.DictWriter(f, fieldnames=read_field_names)
@@ -353,9 +357,14 @@ def get_row_number(insert_rows:int):
     if max_row_number is None:
         true_number_of_rows = 0
     else:
-        true_number_of_rows = max_row_number // dataPerTrue + 1
-    
+        true_number_of_rows = math.ceil(max_row_number / dataPerTrue)
+    read_eval_dict["numbers_of_real_data_in_db_before_read"] = true_number_of_rows
+    upload_eval_dict["numbers_of_real_data_in_db_before_upload"] = true_number_of_rows
     scale = math.ceil(math.log(dataPerTrue, 10))
+    if math.log(dataPerTrue, 10) == scale:
+        restrict_scale = None
+    else:
+        restrict_scale = dataPerTrue//((scale - 1)*10)
     """with open("pi.txt") as f:
         digits = f.read((true_number_of_rows+insert_rows)*scale)"""
     seed = 314
@@ -364,15 +373,25 @@ def get_row_number(insert_rows:int):
     if insert_rows:
         cur_base=true_number_of_rows
         #digits = digits[true_number_of_rows*scale:]
-        for i in range(true_number_of_rows*scale):
-            random.randint(0, 9)
+        # if there is already rows in database, we need to generate previous rows random number to keep the generator consistent for retreieve
+        for i in range(true_number_of_rows):
+            for j in range(scale):
+                if j==scale-1 and restrict_scale is not None:
+                    
+                    random.randint(0, restrict_scale-1)
+                    
+                else:
+                    random.randint(0, 9)
     else:
         cur_base = 0
     for i in range(insert_rows if insert_rows else true_number_of_rows):
         cur_digits = 0
         digit_base = 1
         for j in range(scale):
-            cur_digits += digit_base * random.randint(0, 9)
+            if j==scale-1 and restrict_scale is not None:
+                cur_digits += digit_base * random.randint(0, restrict_scale-1)
+            else:
+                cur_digits += digit_base * random.randint(0, 9)
             digit_base *= 10
         true_row_number.append(cur_base*dataPerTrue+int(cur_digits))
         cur_base+=1
