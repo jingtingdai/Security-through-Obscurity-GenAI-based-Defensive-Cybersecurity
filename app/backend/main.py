@@ -154,78 +154,6 @@ class ResourceTracker:
             f"{self.operation_name}_cpu_percent": round(float(peak_cpu), 2)
         }
 
-def track_resource_usage(start_memory, start_time, operation_name="operation"):
-    """Track resource usage during an operation and return metrics (legacy function for compatibility)"""
-    end_memory = get_memory_mb()
-    memory_delta = end_memory - start_memory
-    
-    # Get CPU usage (non-blocking, uses last interval)
-    cpu_percent = get_cpu_percent(interval=0.1)
-    
-    return {
-        f"{operation_name}_memory_start_mb": round(start_memory, 2),
-        f"{operation_name}_memory_end_mb": round(end_memory, 2),
-        f"{operation_name}_memory_delta_mb": round(memory_delta, 2),
-        f"{operation_name}_cpu_percent": round(cpu_percent, 2)
-    }
-
-# Optional authentication function
-def get_optional_user():
-    """Optional user dependency that returns None if not authenticated"""
-    from fastapi import Request
-    from jose import JWTError, jwt
-    from auth import SECRET_KEY, ALGORITHM
-    
-    async def optional_user_dependency(request: Request):
-        try:
-            # Try to get the authorization header
-            authorization = request.headers.get("Authorization")
-            security_logger.info(f"DEBUG: Authorization header = {authorization[:50] if authorization else 'None'}...")
-            
-            if not authorization or not authorization.startswith("Bearer "):
-                security_logger.info("DEBUG: No valid Authorization header found")
-                return None
-            
-            token = authorization.split(" ")[1]
-            security_logger.info(f"DEBUG: Token extracted, length = {len(token)}")
-            
-            # Decode JWT token manually (similar to get_current_user)
-            # First try normal decode (for valid tokens)
-            try:
-                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            except JWTError as e:
-                # If token is expired, try to decode without verification for logging purposes
-                security_logger.info(f"DEBUG: JWTError during decode - {str(e)}, attempting unverified decode for logging")
-                try:
-                    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": False, "verify_exp": False})
-                    security_logger.info("DEBUG: Successfully decoded expired token for logging purposes")
-                except Exception as decode_error:
-                    security_logger.info(f"DEBUG: Failed to decode even without verification - {str(decode_error)}")
-                    return None
-            
-            username: str = payload.get("sub")
-            user_id: str = payload.get("id")
-            security_logger.info(f"DEBUG: Decoded payload - username={username}, user_id={user_id}")
-            
-            if username is None or user_id is None:
-                security_logger.info("DEBUG: Username or user_id is None in payload")
-                return None
-            
-            result = {"username": username, "id": user_id}
-            security_logger.info(f"DEBUG: Returning user object: {result}")
-            return result
-        except JWTError as e:
-            security_logger.info(f"DEBUG: JWTError - {str(e)}")
-            return None
-        except HTTPException as e:
-            security_logger.info(f"DEBUG: HTTPException - {str(e)}")
-            return None
-        except Exception as e:
-            security_logger.info(f"DEBUG: Unexpected exception - {type(e).__name__}: {str(e)}")
-            return None
-    
-    return Depends(optional_user_dependency)
-
 
 @app.get("/", status_code=status.HTTP_200_OK)
 async def user(user: user_dependency, db: db_dependency):
@@ -347,7 +275,7 @@ async def upload_csv(file: UploadFile):
             db.close()
 
 @app.get("/real-data/")
-async def read_real(user = get_optional_user()):
+async def read_real(user: user_dependency):
     db: Session = SessionLocal()
     start_time = time.time()
     # Debug logging
