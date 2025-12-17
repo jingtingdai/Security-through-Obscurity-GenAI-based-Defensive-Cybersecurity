@@ -20,6 +20,7 @@ import os
 import csv
 import psutil
 import threading
+from docker_stats_collector import DockerStatsCollector
 # Configure logging for security alerts
 # Create file handler with immediate flush to ensure Logstash can read new entries
 # Use a custom handler that flushes after each write
@@ -56,7 +57,7 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=engine)
 
 # represent number of rows for 1 true data. e.g if for every 1 true data there will be another 9 fake data, then it will be set 10
-dataPerTrue = 10
+dataPerTrue = 300
 upload_eval_dict = {}
 read_eval_dict = {}
 user_dependency = Annotated[dict, Depends(get_current_user)]
@@ -163,7 +164,7 @@ async def user(user: user_dependency, db: db_dependency):
 
 def create_fake_rows(num=1):
     fake = Faker()
-    fake_data = [{"Shipment_ID":fake.bothify(text="SH#####") , 
+    fake_data = [{"Shipment_ID":fake.bothify(text="FF#####") , 
                             "Origin_Warehouse": "Warehouse_"+fake.city()[:3].upper(), 
                             "Shipment_Date": fake.date_between(start_date='-2y'), 
                             "Weight_kg": fake.random_int(min=1, max=1000)/10, 
@@ -194,90 +195,124 @@ async def upload_csv(file: UploadFile):
         raise HTTPException(status_code=400, detail="CSV file is empty or contains no data")
     
     # Track peak resources during the entire upload operation
-    with ResourceTracker("upload", sample_interval=0.1) as resource_tracker:
-        # read fake data
-        upload_eval_dict["data_per_true"] = dataPerTrue
-        data_quantity = dataPerTrue * len(df)
-        generate_fakes_start_time = time.time()
-        fake_dict = create_fake_rows(data_quantity)
-        upload_eval_dict["generate_fake_rows_time"] = time.time() - generate_fakes_start_time
-        db: Session = SessionLocal()
-        try:
-            # Time database query for max_row_number
-            db_query_start_time = time.time()
-            max_row_number = db.query(func.max(models.Test.row_number)).scalar()
-            upload_eval_dict["db_query_time"] = time.time() - db_query_start_time
-            if max_row_number is None:
-                max_row_number = 0
-            else:
-                max_row_number += 1
-        except:
-            max_row_number = 0
-            upload_eval_dict["db_query_time"] = 0
-
-        #check data model
-        try:
-            records = df.to_dict(orient="records")
-           
-            # Map to ORM objects - obfuscate only real data, fake data added directly
-            objects = []
-            true_row_number = get_row_number(len(records))
-            
-            idx  = 0
-            obfuscation_time_total = 0
-            for i in range(data_quantity):
-                cur_row_number = max_row_number + i 
-                if cur_row_number not in true_row_number:
-                    # Fake data - add directly without obfuscation
-                    cur_obj = get_model_data_unobfuscated(cur_row_number, fake_dict[i])
-                else:
-                    # Real data - obfuscate before adding
-                    obfuscation_start_time = time.time()
-                    cur_obj = get_model_data_obfuscated(cur_row_number, records[idx])
-                    obfuscation_time_total += time.time() - obfuscation_start_time
-                    idx += 1
-                objects.append(cur_obj)
-            upload_eval_dict["obfuscation_time"] = obfuscation_time_total
-         
-
-            # Time database write operations
-            db_write_start_time = time.time()
-            db.add_all(objects)
-            db.commit()
-            upload_eval_dict["db_write_time"] = time.time() - db_write_start_time
-            upload_eval_dict["upload_time"] = time.time() - start_time
-            upload_eval_dict["real_data_rows"] = len(records)
-            upload_eval_dict["fake_data_rows"] = data_quantity - len(records)
-            
-            # Get peak resource metrics from tracker
-            resource_metrics = resource_tracker.get_metrics()
-            upload_eval_dict.update(resource_metrics)
-            
-            # Write upload metrics to CSV
-            upload_field_names = ["data_per_true", "real_data_rows", "fake_data_rows", "generate_fake_rows_time", "obfuscation_time","numbers_of_real_data_in_db_before_upload", "db_query_time", "db_write_time", "upload_time", "upload_memory_start_mb", "upload_memory_end_mb", "upload_memory_delta_mb", "upload_memory_peak_mb", "upload_cpu_percent"]
-            upload_eval_file_name = "./upload_eval.csv"
+    # Also track Docker container stats (PostgreSQL is the main container for uploads)
+    docker_collector = DockerStatsCollector(
+        container_names=['postgres'],
+        sample_interval=0.5
+    )
+    docker_collector.start()
+    
+    try:
+        with ResourceTracker("upload", sample_interval=0.1) as resource_tracker:
+            # read fake data
+            upload_eval_dict["data_per_true"] = dataPerTrue
+            data_quantity = dataPerTrue * len(df)
+            generate_fakes_start_time = time.time()
+            fake_dict = create_fake_rows(data_quantity)
+            upload_eval_dict["generate_fake_rows_time"] = time.time() - generate_fakes_start_time
+            db: Session = SessionLocal()
             try:
-                with open(upload_eval_file_name, mode='a') as f:
-                    writer = csv.DictWriter(f, fieldnames=upload_field_names)
-                    if os.stat(upload_eval_file_name).st_size == 0:
-                        writer.writeheader()
-                    writer.writerow(upload_eval_dict)
+                # Time database query for max_row_number
+                db_query_start_time = time.time()
+                max_row_number = db.query(func.max(models.Test.row_number)).scalar()
+                upload_eval_dict["db_query_time"] = time.time() - db_query_start_time
+                if max_row_number is None:
+                    max_row_number = 0
+                else:
+                    max_row_number += 1
+            except:
+                max_row_number = 0
+                upload_eval_dict["db_query_time"] = 0
+
+            #check data model
+            try:
+                records = df.to_dict(orient="records")
+               
+                # Map to ORM objects - obfuscate only real data, fake data added directly
+                objects = []
+                true_row_number = get_row_number(len(records))
+                
+                idx  = 0
+                obfuscation_time_total = 0
+                for i in range(data_quantity):
+                    cur_row_number = max_row_number + i 
+                    if cur_row_number not in true_row_number:
+                        # Fake data - add directly without obfuscation
+                        cur_obj = get_model_data_unobfuscated(cur_row_number, fake_dict[i])
+                    else:
+                        # Real data - obfuscate before adding
+                        obfuscation_start_time = time.time()
+                        cur_obj = get_model_data_obfuscated(cur_row_number, records[idx])
+                        obfuscation_time_total += time.time() - obfuscation_start_time
+                        idx += 1
+                    objects.append(cur_obj)
+                upload_eval_dict["obfuscation_time"] = obfuscation_time_total
+             
+
+                # Time database write operations
+                db_write_start_time = time.time()
+                db.add_all(objects)
+                db.commit()
+                upload_eval_dict["db_write_time"] = time.time() - db_write_start_time
+                upload_eval_dict["upload_time"] = time.time() - start_time
+                upload_eval_dict["real_data_rows"] = len(records)
+                upload_eval_dict["fake_data_rows"] = data_quantity - len(records)
+                
+                # Get peak resource metrics from tracker
+                resource_metrics = resource_tracker.get_metrics()
+                upload_eval_dict.update(resource_metrics)
+                
+                # Get Docker container stats
+                docker_stats = docker_collector.get_summary()
+                if docker_stats and 'postgres' in docker_stats:
+                    pg_stats = docker_stats['postgres']
+                    upload_eval_dict['postgres_cpu_percent_peak'] = pg_stats.get('cpu_percent_peak', 0)
+                    upload_eval_dict['postgres_cpu_percent_avg'] = pg_stats.get('cpu_percent_avg', 0)
+                    upload_eval_dict['postgres_memory_peak_mb'] = pg_stats.get('memory_usage_mb_peak', 0)
+                    upload_eval_dict['postgres_memory_avg_mb'] = pg_stats.get('memory_usage_mb_avg', 0)
+                    upload_eval_dict['postgres_memory_delta_mb'] = pg_stats.get('memory_delta_mb', 0)
+                    upload_eval_dict['postgres_block_read_total_mb'] = pg_stats.get('block_read_total_mb', 0)
+                    upload_eval_dict['postgres_block_write_total_mb'] = pg_stats.get('block_write_total_mb', 0)
+                else:
+                    # Log warning if Docker stats are not available
+                    import logging
+                    logging.warning(f"Docker stats not available. Stats dict: {docker_stats}")
+                    # Set default values
+                    upload_eval_dict['postgres_cpu_percent_peak'] = 0
+                    upload_eval_dict['postgres_cpu_percent_avg'] = 0
+                    upload_eval_dict['postgres_memory_peak_mb'] = 0
+                    upload_eval_dict['postgres_memory_avg_mb'] = 0
+                    upload_eval_dict['postgres_memory_delta_mb'] = 0
+                    upload_eval_dict['postgres_block_read_total_mb'] = 0
+                    upload_eval_dict['postgres_block_write_total_mb'] = 0
+                
+                # Write upload metrics to CSV
+                upload_field_names = ["data_per_true", "real_data_rows", "fake_data_rows", "generate_fake_rows_time", "obfuscation_time","numbers_of_real_data_in_db_before_upload", "db_query_time", "db_write_time", "upload_time", "upload_memory_start_mb", "upload_memory_end_mb", "upload_memory_delta_mb", "upload_memory_peak_mb", "upload_cpu_percent", "postgres_cpu_percent_peak", "postgres_cpu_percent_avg", "postgres_memory_peak_mb", "postgres_memory_avg_mb", "postgres_memory_delta_mb", "postgres_block_read_total_mb", "postgres_block_write_total_mb"]
+                upload_eval_file_name = "./upload_eval.csv"
+                try:
+                    with open(upload_eval_file_name, mode='a') as f:
+                        writer = csv.DictWriter(f, fieldnames=upload_field_names)
+                        if os.stat(upload_eval_file_name).st_size == 0:
+                            writer.writeheader()
+                        writer.writerow(upload_eval_dict)
+                except Exception as e:
+                    print(f"Error writing to CSV: {str(e)}")
+                # Reset upload_eval_dict for next upload
+                upload_eval_dict.clear()
+                
+                return {"status": "success", "rows": len(objects)}
             except Exception as e:
-                print(f"Error writing to CSV: {str(e)}")
-            # Reset upload_eval_dict for next upload
-            upload_eval_dict.clear()
-            
-            return {"status": "success", "rows": len(objects)}
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=400, detail=f"Upload failed: {str(e)}")
-        finally:
-            db.close()
+                db.rollback()
+                raise HTTPException(status_code=400, detail=f"Upload failed: {str(e)}")
+            finally:
+                db.close()
+    finally:
+        docker_collector.stop()
+        docker_collector.clear()
 
 @app.get("/real-data/")
 async def read_real(user: user_dependency):
     db: Session = SessionLocal()
-    start_time = time.time()
     # Debug logging
     security_logger.info(f"DEBUG: user object = {user}, type = {type(user)}")
     
@@ -289,55 +324,98 @@ async def read_real(user: user_dependency):
         security_logger.info("DEBUG: user is None or falsy")
 
     # Track peak resources during the entire read operation
-    with ResourceTracker("read", sample_interval=0.1) as resource_tracker:
-        true_row_number = get_row_number(0)
-        
-        # Log frontend access with all accessed rows
-        security_logger.info(
-            f"FRONTEND_ACCESS - accessing_rows:{true_row_number} "
-            f"requested_by:{username} timestamp:{datetime.now().isoformat()}"
-        )
-        
-        # Time database query
-        db_query_start_time = time.time()
-        result = db.query(models.Test).filter(models.Test.row_number.in_(true_row_number)).all()
-        read_eval_dict["db_query_time"] = time.time() - db_query_start_time
-
-        real_data = []
-
-        # Time deobfuscation
-        deobfuscation_start_time = time.time()
-        for i in result:
-            cur_dict = {}
-            cur_dict["Shipment_ID"] = deobfuscate_str(i.Shipment_ID)
-            cur_dict["Origin_Warehouse"] = deobfuscate_str(i.Origin_Warehouse)
-            cur_dict["Shipment_Date"] = deobfuscate_date(i.Shipment_Date)
-            cur_dict["Weight_kg"] = deobfuscate_number(i.Weight_kg)
-            cur_dict["Transit_Days"] = deobfuscate_number(i.Transit_Days)
-            real_data.append(cur_dict)
-        read_eval_dict["deobfuscation_time"] = time.time() - deobfuscation_start_time
-        
-        read_eval_dict["read_real_data_time"] = time.time() - start_time
-        read_eval_dict["total_read_rows"] = len(real_data)
-        read_eval_dict["data_per_true"] = dataPerTrue
-        
-        # Get peak resource metrics from tracker
-        resource_metrics = resource_tracker.get_metrics()
-        read_eval_dict.update(resource_metrics)
+    # Also track Docker container stats (PostgreSQL is the main container for reads)
+    # Use smaller sample interval for read operations since they're typically faster
+    docker_collector = DockerStatsCollector(
+        container_names=['postgres'],
+        sample_interval=0.05  # Reduced from 0.1 to collect more samples for very fast read operations
+    )
+    docker_collector.start()
     
-    # Write read metrics to CSV
-    read_field_names = ["read_real_data_time", "db_query_time", "deobfuscation_time", "numbers_of_real_data_in_db_before_read","total_read_rows", "data_per_true", "read_memory_start_mb", "read_memory_end_mb", "read_memory_delta_mb", "read_memory_peak_mb", "read_cpu_percent"]
-    read_eval_file_name = "./read_eval.csv"
-    with open(read_eval_file_name, mode='a') as f:
-        writer = csv.DictWriter(f, fieldnames=read_field_names)
-        if os.stat(read_eval_file_name).st_size == 0:
-            writer.writeheader()
-        writer.writerow(read_eval_dict)
+    # Start timing AFTER Docker collector setup to avoid including setup time
+    start_time = time.time()
     
-    # Reset read_eval_dict for next read
-    read_eval_dict.clear()
-   
-    return real_data
+    try:
+        with ResourceTracker("read", sample_interval=0.1) as resource_tracker:
+            true_row_number = get_row_number(0)
+            
+            # Log frontend access with all accessed rows
+            security_logger.info(
+                f"FRONTEND_ACCESS - accessing_rows:{true_row_number} "
+                f"requested_by:{username} timestamp:{datetime.now().isoformat()}"
+            )
+            
+            # Time database query
+            db_query_start_time = time.time()
+            result = db.query(models.Test).filter(models.Test.row_number.in_(true_row_number)).all()
+            read_eval_dict["db_query_time"] = time.time() - db_query_start_time
+
+            real_data = []
+
+            # Time deobfuscation
+            deobfuscation_start_time = time.time()
+            for i in result:
+                cur_dict = {}
+                cur_dict["Shipment_ID"] = deobfuscate_str(i.Shipment_ID)
+                cur_dict["Origin_Warehouse"] = deobfuscate_str(i.Origin_Warehouse)
+                cur_dict["Shipment_Date"] = deobfuscate_date(i.Shipment_Date)
+                cur_dict["Weight_kg"] = deobfuscate_number(i.Weight_kg)
+                cur_dict["Transit_Days"] = deobfuscate_number(i.Transit_Days)
+                real_data.append(cur_dict)
+            read_eval_dict["deobfuscation_time"] = time.time() - deobfuscation_start_time
+            
+            read_eval_dict["read_real_data_time"] = time.time() - start_time
+            read_eval_dict["total_read_rows"] = len(real_data)
+            read_eval_dict["data_per_true"] = dataPerTrue
+            
+            # Get peak resource metrics from tracker
+            resource_metrics = resource_tracker.get_metrics()
+            read_eval_dict.update(resource_metrics)
+            
+            # Stop Docker monitoring before getting summary to ensure all samples are collected
+            docker_collector.stop()
+            
+            # Get Docker container stats
+            docker_stats = docker_collector.get_summary()
+            if docker_stats and 'postgres' in docker_stats:
+                pg_stats = docker_stats['postgres']
+                read_eval_dict['postgres_cpu_percent_peak'] = pg_stats.get('cpu_percent_peak', 0)
+                read_eval_dict['postgres_cpu_percent_avg'] = pg_stats.get('cpu_percent_avg', 0)
+                read_eval_dict['postgres_memory_peak_mb'] = pg_stats.get('memory_usage_mb_peak', 0)
+                read_eval_dict['postgres_memory_avg_mb'] = pg_stats.get('memory_usage_mb_avg', 0)
+                read_eval_dict['postgres_memory_delta_mb'] = pg_stats.get('memory_delta_mb', 0)
+                read_eval_dict['postgres_block_read_total_mb'] = pg_stats.get('block_read_total_mb', 0)
+                read_eval_dict['postgres_block_write_total_mb'] = pg_stats.get('block_write_total_mb', 0)
+                read_eval_dict['postgres_sample_count'] = pg_stats.get('sample_count', 0)  # Add sample count for debugging
+            else:
+                # Log warning if Docker stats are not available
+                import logging
+                logging.warning(f"Docker stats not available. Stats dict: {docker_stats}")
+                # Set default values
+                read_eval_dict['postgres_cpu_percent_peak'] = 0
+                read_eval_dict['postgres_cpu_percent_avg'] = 0
+                read_eval_dict['postgres_memory_peak_mb'] = 0
+                read_eval_dict['postgres_memory_avg_mb'] = 0
+                read_eval_dict['postgres_memory_delta_mb'] = 0
+                read_eval_dict['postgres_block_read_total_mb'] = 0
+                read_eval_dict['postgres_block_write_total_mb'] = 0
+            
+            # Write read metrics to CSV
+            read_field_names = ["read_real_data_time", "db_query_time", "deobfuscation_time", "numbers_of_real_data_in_db_before_read","total_read_rows", "data_per_true", "read_memory_start_mb", "read_memory_end_mb", "read_memory_delta_mb", "read_memory_peak_mb", "read_cpu_percent", "postgres_cpu_percent_peak", "postgres_cpu_percent_avg", "postgres_memory_peak_mb", "postgres_memory_avg_mb", "postgres_memory_delta_mb", "postgres_block_read_total_mb", "postgres_block_write_total_mb", "postgres_sample_count"]
+            read_eval_file_name = "./read_eval.csv"
+            with open(read_eval_file_name, mode='a') as f:
+                writer = csv.DictWriter(f, fieldnames=read_field_names)
+                if os.stat(read_eval_file_name).st_size == 0:
+                    writer.writeheader()
+                writer.writerow(read_eval_dict)
+            
+            # Reset read_eval_dict for next read
+            read_eval_dict.clear()
+            
+            return real_data
+    finally:
+        docker_collector.stop()
+        docker_collector.clear()
 
 
 def get_model_data_obfuscated(mapped_row, rec):
