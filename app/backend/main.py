@@ -57,7 +57,7 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=engine)
 
 # represent number of rows for 1 true data. e.g if for every 1 true data there will be another 9 fake data, then it will be set 10
-dataPerTrue = 300
+dataPerTrue = 110
 upload_eval_dict = {}
 read_eval_dict = {}
 user_dependency = Annotated[dict, Depends(get_current_user)]
@@ -197,7 +197,7 @@ async def upload_csv(file: UploadFile):
     # Track peak resources during the entire upload operation
     # Also track Docker container stats (PostgreSQL is the main container for uploads)
     docker_collector = DockerStatsCollector(
-        container_names=['postgres'],
+        container_names=["postgres", "logstash", "elasticsearch", "kibana"],
         sample_interval=0.5
     )
     docker_collector.start()
@@ -264,31 +264,43 @@ async def upload_csv(file: UploadFile):
                 
                 # Get Docker container stats
                 docker_stats = docker_collector.get_summary()
-                if docker_stats and 'postgres' in docker_stats:
-                    pg_stats = docker_stats['postgres']
-                    upload_eval_dict['postgres_cpu_percent_peak'] = pg_stats.get('cpu_percent_peak', 0)
-                    upload_eval_dict['postgres_cpu_percent_avg'] = pg_stats.get('cpu_percent_avg', 0)
-                    upload_eval_dict['postgres_memory_peak_mb'] = pg_stats.get('memory_usage_mb_peak', 0)
-                    upload_eval_dict['postgres_memory_avg_mb'] = pg_stats.get('memory_usage_mb_avg', 0)
-                    upload_eval_dict['postgres_memory_delta_mb'] = pg_stats.get('memory_delta_mb', 0)
-                    upload_eval_dict['postgres_block_read_total_mb'] = pg_stats.get('block_read_total_mb', 0)
-                    upload_eval_dict['postgres_block_write_total_mb'] = pg_stats.get('block_write_total_mb', 0)
-                else:
-                    # Log warning if Docker stats are not available
+                containers_to_track = ["postgres", "logstash", "elasticsearch", "kibana"]
+                if not docker_stats:
                     import logging
                     logging.warning(f"Docker stats not available. Stats dict: {docker_stats}")
-                    # Set default values
-                    upload_eval_dict['postgres_cpu_percent_peak'] = 0
-                    upload_eval_dict['postgres_cpu_percent_avg'] = 0
-                    upload_eval_dict['postgres_memory_peak_mb'] = 0
-                    upload_eval_dict['postgres_memory_avg_mb'] = 0
-                    upload_eval_dict['postgres_memory_delta_mb'] = 0
-                    upload_eval_dict['postgres_block_read_total_mb'] = 0
-                    upload_eval_dict['postgres_block_write_total_mb'] = 0
+                    docker_stats = {}
+
+                for cname in containers_to_track:
+                    cstats = docker_stats.get(cname, {}) if isinstance(docker_stats, dict) else {}
+                    upload_eval_dict[f"{cname}_cpu_percent_peak"] = cstats.get("cpu_percent_peak", 0)
+                    upload_eval_dict[f"{cname}_cpu_percent_avg"] = cstats.get("cpu_percent_avg", 0)
+                    upload_eval_dict[f"{cname}_memory_peak_mb"] = cstats.get("memory_usage_mb_peak", 0)
+                    upload_eval_dict[f"{cname}_memory_avg_mb"] = cstats.get("memory_usage_mb_avg", 0)
+                    upload_eval_dict[f"{cname}_memory_delta_mb"] = cstats.get("memory_delta_mb", 0)
+                    upload_eval_dict[f"{cname}_block_read_total_mb"] = cstats.get("block_read_total_mb", 0)
+                    upload_eval_dict[f"{cname}_block_write_total_mb"] = cstats.get("block_write_total_mb", 0)
+                    upload_eval_dict[f"{cname}_sample_count"] = cstats.get("sample_count", 0)
                 
                 # Write upload metrics to CSV
-                upload_field_names = ["data_per_true", "real_data_rows", "fake_data_rows", "generate_fake_rows_time", "obfuscation_time","numbers_of_real_data_in_db_before_upload", "db_query_time", "db_write_time", "upload_time", "upload_memory_start_mb", "upload_memory_end_mb", "upload_memory_delta_mb", "upload_memory_peak_mb", "upload_cpu_percent", "postgres_cpu_percent_peak", "postgres_cpu_percent_avg", "postgres_memory_peak_mb", "postgres_memory_avg_mb", "postgres_memory_delta_mb", "postgres_block_read_total_mb", "postgres_block_write_total_mb"]
-                upload_eval_file_name = "./upload_eval.csv"
+                upload_field_names = [
+                    "data_per_true", "real_data_rows", "fake_data_rows", "generate_fake_rows_time",
+                    "obfuscation_time", "numbers_of_real_data_in_db_before_upload",
+                    "db_query_time", "db_write_time", "upload_time",
+                    "upload_memory_start_mb", "upload_memory_end_mb", "upload_memory_delta_mb",
+                    "upload_memory_peak_mb", "upload_cpu_percent",
+                ]
+                for cname in containers_to_track:
+                    upload_field_names.extend([
+                        f"{cname}_cpu_percent_peak",
+                        f"{cname}_cpu_percent_avg",
+                        f"{cname}_memory_peak_mb",
+                        f"{cname}_memory_avg_mb",
+                        f"{cname}_memory_delta_mb",
+                        f"{cname}_block_read_total_mb",
+                        f"{cname}_block_write_total_mb",
+                        f"{cname}_sample_count",
+                    ])
+                upload_eval_file_name = "./upload_with_logging_eval.csv"
                 try:
                     with open(upload_eval_file_name, mode='a') as f:
                         writer = csv.DictWriter(f, fieldnames=upload_field_names)
@@ -327,8 +339,9 @@ async def read_real(user: user_dependency):
     # Also track Docker container stats (PostgreSQL is the main container for reads)
     # Use smaller sample interval for read operations since they're typically faster
     docker_collector = DockerStatsCollector(
-        container_names=['postgres'],
-        sample_interval=0.05  # Reduced from 0.1 to collect more samples for very fast read operations
+        container_names=["postgres", "logstash", "elasticsearch", "kibana"],
+        # With multi-container tracking, keep sampling moderate to limit overhead.
+        sample_interval=0.5
     )
     docker_collector.start()
     
@@ -377,32 +390,42 @@ async def read_real(user: user_dependency):
             
             # Get Docker container stats
             docker_stats = docker_collector.get_summary()
-            if docker_stats and 'postgres' in docker_stats:
-                pg_stats = docker_stats['postgres']
-                read_eval_dict['postgres_cpu_percent_peak'] = pg_stats.get('cpu_percent_peak', 0)
-                read_eval_dict['postgres_cpu_percent_avg'] = pg_stats.get('cpu_percent_avg', 0)
-                read_eval_dict['postgres_memory_peak_mb'] = pg_stats.get('memory_usage_mb_peak', 0)
-                read_eval_dict['postgres_memory_avg_mb'] = pg_stats.get('memory_usage_mb_avg', 0)
-                read_eval_dict['postgres_memory_delta_mb'] = pg_stats.get('memory_delta_mb', 0)
-                read_eval_dict['postgres_block_read_total_mb'] = pg_stats.get('block_read_total_mb', 0)
-                read_eval_dict['postgres_block_write_total_mb'] = pg_stats.get('block_write_total_mb', 0)
-                read_eval_dict['postgres_sample_count'] = pg_stats.get('sample_count', 0)  # Add sample count for debugging
-            else:
-                # Log warning if Docker stats are not available
+            containers_to_track = ["postgres", "logstash", "elasticsearch", "kibana"]
+            if not docker_stats:
                 import logging
                 logging.warning(f"Docker stats not available. Stats dict: {docker_stats}")
-                # Set default values
-                read_eval_dict['postgres_cpu_percent_peak'] = 0
-                read_eval_dict['postgres_cpu_percent_avg'] = 0
-                read_eval_dict['postgres_memory_peak_mb'] = 0
-                read_eval_dict['postgres_memory_avg_mb'] = 0
-                read_eval_dict['postgres_memory_delta_mb'] = 0
-                read_eval_dict['postgres_block_read_total_mb'] = 0
-                read_eval_dict['postgres_block_write_total_mb'] = 0
+                docker_stats = {}
+
+            for cname in containers_to_track:
+                cstats = docker_stats.get(cname, {}) if isinstance(docker_stats, dict) else {}
+                read_eval_dict[f"{cname}_cpu_percent_peak"] = cstats.get("cpu_percent_peak", 0)
+                read_eval_dict[f"{cname}_cpu_percent_avg"] = cstats.get("cpu_percent_avg", 0)
+                read_eval_dict[f"{cname}_memory_peak_mb"] = cstats.get("memory_usage_mb_peak", 0)
+                read_eval_dict[f"{cname}_memory_avg_mb"] = cstats.get("memory_usage_mb_avg", 0)
+                read_eval_dict[f"{cname}_memory_delta_mb"] = cstats.get("memory_delta_mb", 0)
+                read_eval_dict[f"{cname}_block_read_total_mb"] = cstats.get("block_read_total_mb", 0)
+                read_eval_dict[f"{cname}_block_write_total_mb"] = cstats.get("block_write_total_mb", 0)
+                read_eval_dict[f"{cname}_sample_count"] = cstats.get("sample_count", 0)
             
             # Write read metrics to CSV
-            read_field_names = ["read_real_data_time", "db_query_time", "deobfuscation_time", "numbers_of_real_data_in_db_before_read","total_read_rows", "data_per_true", "read_memory_start_mb", "read_memory_end_mb", "read_memory_delta_mb", "read_memory_peak_mb", "read_cpu_percent", "postgres_cpu_percent_peak", "postgres_cpu_percent_avg", "postgres_memory_peak_mb", "postgres_memory_avg_mb", "postgres_memory_delta_mb", "postgres_block_read_total_mb", "postgres_block_write_total_mb", "postgres_sample_count"]
-            read_eval_file_name = "./read_eval.csv"
+            read_field_names = [
+                "read_real_data_time", "db_query_time", "deobfuscation_time",
+                "numbers_of_real_data_in_db_before_read", "total_read_rows", "data_per_true",
+                "read_memory_start_mb", "read_memory_end_mb", "read_memory_delta_mb",
+                "read_memory_peak_mb", "read_cpu_percent",
+            ]
+            for cname in containers_to_track:
+                read_field_names.extend([
+                    f"{cname}_cpu_percent_peak",
+                    f"{cname}_cpu_percent_avg",
+                    f"{cname}_memory_peak_mb",
+                    f"{cname}_memory_avg_mb",
+                    f"{cname}_memory_delta_mb",
+                    f"{cname}_block_read_total_mb",
+                    f"{cname}_block_write_total_mb",
+                    f"{cname}_sample_count",
+                ])
+            read_eval_file_name = "./read_with_logging_eval.csv"
             with open(read_eval_file_name, mode='a') as f:
                 writer = csv.DictWriter(f, fieldnames=read_field_names)
                 if os.stat(read_eval_file_name).st_size == 0:
@@ -473,45 +496,45 @@ def get_row_number(insert_rows:int):
         true_number_of_rows = math.ceil(max_row_number / dataPerTrue)
     read_eval_dict["numbers_of_real_data_in_db_before_read"] = true_number_of_rows
     upload_eval_dict["numbers_of_real_data_in_db_before_upload"] = true_number_of_rows
-    scale = math.ceil(math.log(dataPerTrue, 10))
-    if math.log(dataPerTrue, 10) == scale:
-        restrict_scale = None
-    else:
-        restrict_scale = dataPerTrue//((scale - 1)*10)
-    """with open("pi.txt") as f:
-        digits = f.read((true_number_of_rows+insert_rows)*scale)"""
+    if dataPerTrue==0:
+        if insert_rows == 0:
+            return list(range(true_number_of_rows))
+        
+        else:
+            return list(range(true_number_of_rows, insert_rows+true_number_of_rows))
+    unrestricted_digits = 0;
+    restrict = 0;
+    cur_num = dataPerTrue
+    while cur_num%10==0:
+        unrestricted_digits+=1
+        cur_num = cur_num / 10;
+    
+    restrict = cur_num; 
     seed = 314
     random.seed(seed)
     true_row_number = []
     if insert_rows:
         cur_base=true_number_of_rows
-        #digits = digits[true_number_of_rows*scale:]
-        # if there is already rows in database, we need to generate previous rows random number to keep the generator consistent for retreieve
+        # if there is already rows in database, generate previous rows random number to keep the generator consistent for retreieve
         for i in range(true_number_of_rows):
-            for j in range(scale):
-                if j==scale-1 and restrict_scale is not None:
-                    
-                    random.randint(0, restrict_scale-1)
-                    
-                else:
-                    random.randint(0, 9)
+            for j in range(unrestricted_digits):
+                random.randint(0, 9)
+            if restrict != 0:
+                random.randint(0,restrict-1)
     else:
         cur_base = 0
     for i in range(insert_rows if insert_rows else true_number_of_rows):
-        cur_digits = 0
+        cur_num = 0
         digit_base = 1
-        for j in range(scale):
-            if j==scale-1 and restrict_scale is not None:
-                cur_digits += digit_base * random.randint(0, restrict_scale-1)
-            else:
-                cur_digits += digit_base * random.randint(0, 9)
+        for j in range(unrestricted_digits):
+            cur_num += digit_base * random.randint(0, 9)
             digit_base *= 10
-        true_row_number.append(cur_base*dataPerTrue+int(cur_digits))
+        if restrict!=0:
+            cur_num += digit_base*random.randint(0,restrict-1)
+        true_row_number.append(cur_base*dataPerTrue+int(cur_num))
         cur_base+=1
-    
 
     return true_row_number
-
 
 
 
