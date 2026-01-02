@@ -21,6 +21,7 @@ import csv
 import psutil
 import threading
 from docker_stats_collector import DockerStatsCollector
+
 # Configure logging for security alerts
 # Create file handler with immediate flush to ensure Logstash can read new entries
 # Use a custom handler that flushes after each write
@@ -57,7 +58,7 @@ app.add_middleware(
 models.Base.metadata.create_all(bind=engine)
 
 # represent number of rows for 1 true data. e.g if for every 1 true data there will be another 9 fake data, then it will be set 10
-dataPerTrue = 110
+dataPerTrue = 300
 upload_eval_dict = {}
 read_eval_dict = {}
 user_dependency = Annotated[dict, Depends(get_current_user)]
@@ -197,7 +198,7 @@ async def upload_csv(file: UploadFile):
     # Track peak resources during the entire upload operation
     # Also track Docker container stats (PostgreSQL is the main container for uploads)
     docker_collector = DockerStatsCollector(
-        container_names=["postgres", "logstash", "elasticsearch", "kibana"],
+        container_names=["postgres"],
         sample_interval=0.5
     )
     docker_collector.start()
@@ -264,7 +265,7 @@ async def upload_csv(file: UploadFile):
                 
                 # Get Docker container stats
                 docker_stats = docker_collector.get_summary()
-                containers_to_track = ["postgres", "logstash", "elasticsearch", "kibana"]
+                containers_to_track = ["postgres"]
                 if not docker_stats:
                     import logging
                     logging.warning(f"Docker stats not available. Stats dict: {docker_stats}")
@@ -300,7 +301,7 @@ async def upload_csv(file: UploadFile):
                         f"{cname}_block_write_total_mb",
                         f"{cname}_sample_count",
                     ])
-                upload_eval_file_name = "./upload_with_logging_eval.csv"
+                upload_eval_file_name = "./upload_eval.csv"
                 try:
                     with open(upload_eval_file_name, mode='a') as f:
                         writer = csv.DictWriter(f, fieldnames=upload_field_names)
@@ -337,9 +338,8 @@ async def read_real(user: user_dependency):
 
     # Track peak resources during the entire read operation
     # Also track Docker container stats (PostgreSQL is the main container for reads)
-    # Use smaller sample interval for read operations since they're typically faster
     docker_collector = DockerStatsCollector(
-        container_names=["postgres", "logstash", "elasticsearch", "kibana"],
+        container_names=["postgres"],
         # With multi-container tracking, keep sampling moderate to limit overhead.
         sample_interval=0.5
     )
@@ -390,7 +390,7 @@ async def read_real(user: user_dependency):
             
             # Get Docker container stats
             docker_stats = docker_collector.get_summary()
-            containers_to_track = ["postgres", "logstash", "elasticsearch", "kibana"]
+            containers_to_track = ["postgres"]
             if not docker_stats:
                 import logging
                 logging.warning(f"Docker stats not available. Stats dict: {docker_stats}")
@@ -425,7 +425,7 @@ async def read_real(user: user_dependency):
                     f"{cname}_block_write_total_mb",
                     f"{cname}_sample_count",
                 ])
-            read_eval_file_name = "./read_with_logging_eval.csv"
+            read_eval_file_name = "./read_eval.csv"
             with open(read_eval_file_name, mode='a') as f:
                 writer = csv.DictWriter(f, fieldnames=read_field_names)
                 if os.stat(read_eval_file_name).st_size == 0:

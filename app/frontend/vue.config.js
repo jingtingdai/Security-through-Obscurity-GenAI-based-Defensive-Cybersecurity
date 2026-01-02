@@ -3,6 +3,10 @@ module.exports = defineConfig({
   transpileDependencies: true,
   devServer: {
     port: 3000,
-    host: 'localhost'
+    host: '0.0.0.0',
+    allowedHosts: 'all',
+    client: {
+      webSocketURL: 'auto://0.0.0.0:0/ws'
+    }
   }
 })
