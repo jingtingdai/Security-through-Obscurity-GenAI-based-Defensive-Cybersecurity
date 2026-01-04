@@ -26,7 +26,7 @@ bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rou
 
 
 def list_users():
-    """List all users in the database"""
+    #List all users in the database
     db = SessionLocal()
     try:
         users = db.query(Users).all()
@@ -44,30 +44,30 @@ def list_users():
         print(f"Total users: {len(users)}")
         
     except Exception as e:
-        print(f"❌ Error listing users: {e}")
+        print(f"Error listing users: {e}")
     finally:
         db.close()
 
 
 def create_user(username):
-    """Create a new user"""
+    #Create a new user
     db = SessionLocal()
     try:
         # Check if user already exists
         existing_user = db.query(Users).filter(Users.username == username).first()
         if existing_user:
-            print(f"❌ User '{username}' already exists!")
+            print(f"User '{username}' already exists!")
             return False
         
         # Get password
         password = getpass.getpass(f"Enter password for user '{username}': ")
         if len(password) < 6:
-            print("❌ Password must be at least 6 characters long!")
+            print("Password must be at least 6 characters long!")
             return False
         
         confirm_password = getpass.getpass("Confirm password: ")
         if password != confirm_password:
-            print("❌ Passwords do not match!")
+            print("Passwords do not match!")
             return False
         
         # Handle password length for bcrypt (72 byte limit)
@@ -86,11 +86,11 @@ def create_user(username):
         db.add(new_user)
         db.commit()
         
-        print(f"✅ User '{username}' created successfully!")
+        print(f"User '{username}' created successfully!")
         return True
         
     except Exception as e:
-        print(f"❌ Error creating user: {e}")
+        print(f"Error creating user: {e}")
         db.rollback()
         return False
     finally:
@@ -98,17 +98,17 @@ def create_user(username):
 
 
 def delete_user(username):
-    """Delete a user"""
+    #Delete a user
     db = SessionLocal()
     try:
         user = db.query(Users).filter(Users.username == username).first()
         
         if not user:
-            print(f"❌ User '{username}' not found!")
+            print(f"User '{username}' not found!")
             return False
         
         # Confirm deletion
-        confirm = input(f"⚠️  Are you sure you want to delete user '{username}'? (yes/no): ")
+        confirm = input(f"Are you sure you want to delete user '{username}'? (yes/no): ")
         if confirm.lower() != 'yes':
             print("Deletion cancelled.")
             return False
@@ -116,11 +116,11 @@ def delete_user(username):
         db.delete(user)
         db.commit()
         
-        print(f"✅ User '{username}' deleted successfully!")
+        print(f"User '{username}' deleted successfully!")
         return True
         
     except Exception as e:
-        print(f"❌ Error deleting user: {e}")
+        print(f"Error deleting user: {e}")
         db.rollback()
         return False
     finally:
@@ -128,24 +128,24 @@ def delete_user(username):
 
 
 def reset_password(username):
-    """Reset a user's password"""
+    #Reset a user's password
     db = SessionLocal()
     try:
         user = db.query(Users).filter(Users.username == username).first()
         
         if not user:
-            print(f"❌ User '{username}' not found!")
+            print(f"User '{username}' not found!")
             return False
         
         # Get new password
         password = getpass.getpass(f"Enter new password for user '{username}': ")
         if len(password) < 6:
-            print("❌ Password must be at least 6 characters long!")
+            print("Password must be at least 6 characters long!")
             return False
         
         confirm_password = getpass.getpass("Confirm password: ")
         if password != confirm_password:
-            print("❌ Passwords do not match!")
+            print("Passwords do not match!")
             return False
         
         # Handle password length for bcrypt (72 byte limit)
@@ -161,7 +161,7 @@ def reset_password(username):
         return True
         
     except Exception as e:
-        print(f"❌ Error resetting password: {e}")
+        print(f"Error resetting password: {e}")
         db.rollback()
         return False
     finally:
@@ -169,7 +169,7 @@ def reset_password(username):
 
 
 def main():
-    """Main function to handle user management commands"""
+    #Main function to handle user management commands
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
@@ -198,7 +198,7 @@ def main():
         reset_password(sys.argv[2])
     
     else:
-        print(f"❌ Unknown command: {command}")
+        print(f"Unknown command: {command}")
         print(__doc__)
         sys.exit(1)
 

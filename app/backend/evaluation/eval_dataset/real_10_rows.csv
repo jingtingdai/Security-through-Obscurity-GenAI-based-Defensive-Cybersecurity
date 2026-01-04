@@ -1,0 +1,11 @@
+Shipment_ID,Origin_Warehouse,Shipment_Date,Weight_kg,Transit_Days
+SH10000,Warehouse_MIA,2023-10-02,25.7,2
+SH10001,Warehouse_MIA,2023-12-06,38.9,3
+SH10002,Warehouse_LA,2023-09-18,37.2,2
+SH10003,Warehouse_BOS,2023-01-26,42.6,9
+SH10004,Warehouse_SF,2023-06-03,7.9,3
+SH10005,Warehouse_ATL,2023-09-13,9.1,3
+SH10006,Warehouse_BOS,2023-10-19,0.4,4
+SH10007,Warehouse_CHI,2023-02-27,16.7,9
+SH10008,Warehouse_HOU,2023-11-24,15.1,7
+SH10009,Warehouse_SF,2023-01-19,27.7,2

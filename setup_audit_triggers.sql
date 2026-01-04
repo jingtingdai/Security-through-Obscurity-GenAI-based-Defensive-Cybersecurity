@@ -1,11 +1,8 @@
--- ============================================
 -- PostgreSQL Audit Trigger Setup Script
--- ============================================
 -- This script creates:
 -- 1. An audit_log table to store all database changes
 -- 2. A trigger function that logs INSERT, UPDATE, DELETE operations
 -- 3. Triggers on your tables
--- ============================================
 
 -- Step 1: Create audit log table
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -130,12 +127,12 @@ $$ LANGUAGE plpgsql;
 
 -- Step 3: Create triggers on existing tables
 -- Drop existing triggers if they exist (to allow re-running this script)
-DROP TRIGGER IF EXISTS audit_trigger_test1123_f ON test1123_f;
+DROP TRIGGER IF EXISTS tablename ON tablename; -- Replace tablename with the name of the table you want to audit
 DROP TRIGGER IF EXISTS audit_trigger_users ON "Users";
 
--- Create trigger on test1021 table
-CREATE TRIGGER audit_trigger_test1123_f
-    AFTER INSERT OR UPDATE OR DELETE ON test1123_f
+-- Create trigger on table
+CREATE TRIGGER audit_trigger_tablename
+    AFTER INSERT OR UPDATE OR DELETE ON tablename
     FOR EACH ROW
     EXECUTE FUNCTION audit_trigger_function();
 
@@ -149,6 +146,6 @@ CREATE TRIGGER audit_trigger_users
 DO $$
 BEGIN
     RAISE NOTICE 'Audit triggers have been successfully created!';
-    RAISE NOTICE 'Triggers are active on: test1123_f, Users';
+    RAISE NOTICE 'Triggers are active on: tablename, Users';
 END $$;
 

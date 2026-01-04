@@ -196,7 +196,7 @@ async def upload_csv(file: UploadFile):
         raise HTTPException(status_code=400, detail="CSV file is empty or contains no data")
     
     # Track peak resources during the entire upload operation
-    # Also track Docker container stats (PostgreSQL is the main container for uploads)
+    # Also track Docker container stats
     docker_collector = DockerStatsCollector(
         container_names=["postgres"],
         sample_interval=0.5
@@ -337,10 +337,8 @@ async def read_real(user: user_dependency):
         security_logger.info("DEBUG: user is None or falsy")
 
     # Track peak resources during the entire read operation
-    # Also track Docker container stats (PostgreSQL is the main container for reads)
     docker_collector = DockerStatsCollector(
         container_names=["postgres"],
-        # With multi-container tracking, keep sampling moderate to limit overhead.
         sample_interval=0.5
     )
     docker_collector.start()

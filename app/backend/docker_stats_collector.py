@@ -96,8 +96,6 @@ class DockerStatsCollector:
             memory_percent = (memory_usage / memory_limit * 100.0) if memory_limit > 0 else 0.0
             
             # Block I/O - handle missing fields
-            # Docker block I/O stats are cumulative (total since container start)
-            # We need to track the cumulative values and calculate deltas later
             blkio_stats = stats.get('blkio_stats', {})
             read_bytes = 0
             write_bytes = 0
@@ -168,8 +166,6 @@ class DockerStatsCollector:
         try:
             # Start streaming stats - this ensures we get at least one sample
             # The first stat from the stream will be collected immediately
-            # Note: Docker's stats stream provides stats at its own rate (typically ~1 per second)
-            # We can't force it to provide stats faster, but we can collect them as they arrive
             stats_stream = container.stats(stream=True, decode=True)
             first_stat_collected = False
             stat_count = 0
@@ -197,8 +193,7 @@ class DockerStatsCollector:
                         # Log subsequent samples for debugging
                         logger.info(f"Collected stat #{stat_count} for container '{container_name}' (CPU: {parsed_stats.get('cpu_percent', 0):.2f}%)")
                 
-                # Don't sleep - Docker's stats stream provides stats at its own rate
-                # Sleeping here would just delay collection of the next stat
+
         except Exception as e:
             logger.error(f"Error monitoring container {container_name}: {e}", exc_info=True)
     
@@ -258,7 +253,6 @@ class DockerStatsCollector:
         # Before stopping, check if we have enough samples for delta calculations
         # If we only have 1-2 samples, wait a bit longer to collect more
         # CRITICAL: Keep _monitoring = True while waiting so the thread continues collecting
-        # NOTE: Docker's stats stream provides stats at ~1 per second, so we need to wait at least 1-2 seconds
         max_wait_iterations = 3  # Try up to 3 times to collect more samples
         for iteration in range(max_wait_iterations):
             all_have_enough_samples = True
@@ -268,8 +262,6 @@ class DockerStatsCollector:
                     all_have_enough_samples = False
                     logger.info(f"Iteration {iteration + 1}: Only {len(stats_list)} sample(s) for '{container_name}', waiting for more...")
                     # Wait for Docker to provide more stats
-                    # Docker's stats stream provides stats at ~1 per second, so we need to wait at least 1.5 seconds
-                    # to get a reasonable chance of collecting another stat
                     wait_time = max(1.5, self.sample_interval * 10)  # Wait at least 1.5 seconds
                     logger.info(f"Waiting {wait_time:.2f}s for Docker to provide more stats (Docker rate: ~1 per second)...")
                     time.sleep(wait_time)
@@ -283,7 +275,6 @@ class DockerStatsCollector:
         # Now stop monitoring
         self._monitoring = False
         
-        # Wait a bit more to ensure final stats are collected
         # Give enough time for at least one more sample
         wait_time = max(self.sample_interval * 2, 0.3)
         time.sleep(wait_time)
@@ -306,17 +297,13 @@ class DockerStatsCollector:
         
         logger.info(f"Getting summary for containers: {list(self.stats_data.keys())}")
         
-        # Wait a bit more if we don't have stats yet (for very fast operations)
-        # Also wait if we only have 1 sample to try to get at least 2 for delta calculation
+
         for container_name in self.stats_data.keys():
             stats_list = self.stats_data.get(container_name, [])
             if len(stats_list) == 0:
                 logger.warning(f"No stats yet for '{container_name}', waiting a bit more...")
-                # Give it a bit more time
                 time.sleep(0.3)
             elif len(stats_list) == 1:
-                # Only 1 sample - this shouldn't happen if stop() was called properly
-                # But if it does, log a warning
                 logger.warning(f"Only 1 sample for '{container_name}' in get_summary() - monitoring may have stopped too early")
         
         for container_name, stats_list in self.stats_data.items():
@@ -346,14 +333,10 @@ class DockerStatsCollector:
             
             # Block I/O and Network stats are cumulative (total since container start)
             # Calculate the delta (actual I/O during monitoring period)
-            # This is the difference between the last and first sample
-            # NOTE: We need at least 2 samples to calculate a meaningful delta
-            # With only 1 sample, we can't determine the I/O during the operation
             if len(block_read_values) > 1:
                 total_block_read = max(0, block_read_values[-1] - block_read_values[0])
             elif len(block_read_values) == 1:
                 # Can't calculate delta with only one sample - return 0
-                # The single value is cumulative since container start, not operation-specific
                 total_block_read = 0
             else:
                 total_block_read = 0
@@ -362,13 +345,11 @@ class DockerStatsCollector:
                 total_block_write = max(0, block_write_values[-1] - block_write_values[0])
             elif len(block_write_values) == 1:
                 # Can't calculate delta with only one sample - return 0
-                # The single value is cumulative since container start, not operation-specific
                 total_block_write = 0
             else:
                 total_block_write = 0
             
-            # Network stats are also cumulative, calculate delta
-            # We need at least 2 samples to calculate a meaningful delta
+
             if len(network_rx_values) > 1:
                 total_network_rx = max(0, network_rx_values[-1] - network_rx_values[0])
             elif len(network_rx_values) == 1:
